@@ -1,0 +1,25 @@
+{
+  "name": "y-nostr",
+  "version": "0.0.0",
+  "description": "yjs crdt state synchronizors over nostr relays",
+  "main": "index.js",
+  "scripts": {
+    "build": "./node_modules/rollup/dist/bin/rollup -c",
+    "test": "standard --ignore dist --ignore demo && node test/index.mjs"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.12.0",
+    "standard": "^17.1.0"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.4.0",
+    "@nostr-dev-kit/ndk": "^2.8.1",
+    "lib0": "^0.2.91",
+    "nostr-tools": "^2.5.2",
+    "websocket-polyfill": "^1.0.0",
+    "ws": "^8.17.0",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.14"
+  }
+}

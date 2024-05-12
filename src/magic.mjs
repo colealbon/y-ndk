@@ -1,1 +1,0 @@
-export const NOSTR_CRDT_EVENT_TYPE = 9001

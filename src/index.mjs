@@ -5,9 +5,6 @@ import {
 } from 'lib0/buffer'
 import * as yjs from 'yjs'
 import {
-  NOSTR_CRDT_EVENT_TYPE
-} from './magic.mjs'
-import {
   NDKEvent
 } from '@nostr-dev-kit/ndk'
 import {
@@ -18,12 +15,15 @@ import {
 export async function createNostrCRDTRoom (
   ndk,
   label,
-  initialLocalState
+  initialLocalState,
+  YJS_UPDATE_EVENT_KIND
 ) {
+  // plagiarized from:
+  // https://github.com/YousefED/nostr-crdt/blob/main/packages/nostr-crdt/src/createNostrCRDTRoom.ts
   return new Promise((resolve) => {
     const sub = ndk.subscribe({
       since: Math.floor(Date.now() / 1000) - 1,
-      kinds: [NOSTR_CRDT_EVENT_TYPE]
+      kinds: [YJS_UPDATE_EVENT_KIND]
     }, {
       closeOnEose: false
     })
@@ -32,7 +32,7 @@ export async function createNostrCRDTRoom (
     })
     const ndkEvent = new NDKEvent(ndk)
     ndkEvent.created_at = Math.floor(Date.now() / 1000)
-    ndkEvent.kind = NOSTR_CRDT_EVENT_TYPE
+    ndkEvent.kind = YJS_UPDATE_EVENT_KIND
     ndkEvent.content = toBase64(initialLocalState)
     ndkEvent.tags = [['crdt', label]]
     ndk.publish(ndkEvent)
@@ -43,7 +43,8 @@ export class NostrProvider extends ObservableV2 {
     ydoc,
     nostrRoomCreateEventId,
     ndk,
-    publicKey
+    publicKey,
+    YJS_UPDATE_EVENT_KIND
   ) {
     super()
     this.ydoc = ydoc
@@ -51,6 +52,7 @@ export class NostrProvider extends ObservableV2 {
     this.nostrRoomCreateEventId = nostrRoomCreateEventId
     this.ydoc.on('update', this.documentUpdateListener)
     this.publicKey = publicKey
+    this.YJS_UPDATE_EVENT_KIND = YJS_UPDATE_EVENT_KIND
   }
 
   updateFromEvents (events) {
@@ -62,7 +64,7 @@ export class NostrProvider extends ObservableV2 {
 
   publishUpdate (update) {
     const ndkEvent = new NDKEvent(this.ndk)
-    ndkEvent.kind = NOSTR_CRDT_EVENT_TYPE
+    ndkEvent.kind = this.YJS_UPDATE_EVENT_KIND
     ndkEvent.created_at = Math.floor(Date.now() / 1000)
     ndkEvent.content = toBase64(update)
     ndkEvent.tags = [
@@ -112,14 +114,13 @@ export class NostrProvider extends ObservableV2 {
       const sub = this.ndk.subscribe([
         {
           ids: [this.nostrRoomCreateEventId],
-          kinds: [NOSTR_CRDT_EVENT_TYPE]
-          //,
-          // limit: 1,
-          // since: 0
+          kinds: [this.YJS_UPDATE_EVENT_KIND],
+          limit: 1,
+          since: 0
         },
         {
           '#e': [this.nostrRoomCreateEventId],
-          kinds: [NOSTR_CRDT_EVENT_TYPE]
+          kinds: [this.YJS_UPDATE_EVENT_KIND]
         }
       ])
       sub.on('event', (e) => {

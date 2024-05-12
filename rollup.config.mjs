@@ -1,4 +1,5 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve'
+import commonjs from '@rollup/plugin-commonjs'
 
 export default [{
   input: 'src/index.mjs',
@@ -14,6 +15,7 @@ export default [{
     sourcemap: true
   }],
   plugins: [
+    commonjs(),
     nodeResolve({
       dedupe: 'yjs'
     })

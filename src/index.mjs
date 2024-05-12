@@ -39,42 +39,18 @@ export async function createNostrCRDTRoom (
   })
 }
 export class NostrProvider extends ObservableV2 {
-  async documentUpdateListener (update, origin) {
-    console.log('documentUpdateListener')
-    if (origin === this) {
-      console.log('these are updates that came in from NostrProvider')
-      return
-    }
-    if (origin?.provider) {
-      console.log('origin')
-      console.log(origin)
-      // update from peer (e.g.: webrtc / websockets). Peer is responsible for sending to Nostr
-      return
-    }
-    this.pendingUpdates.push(update)
-
-    if (this.sendPendingTimeout) {
-      clearTimeout(this.sendPendingTimeout)
-    }
-
-    // buffer every 100ms
-    this.sendPendingTimeout = setTimeout(() => {
-      console.log('pendingUpdates')
-      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates))
-      this.pendingUpdates = []
-    }, 100)
-  }
-
   constructor (
     ydoc,
     nostrRoomCreateEventId,
-    ndk
+    ndk,
+    publicKey
   ) {
     super()
     this.ydoc = ydoc
     this.ndk = ndk
     this.nostrRoomCreateEventId = nostrRoomCreateEventId
-    this.ydoc.on('update', (theupdate, origin) => this.documentUpdateListener(theupdate, origin))
+    this.ydoc.on('update', this.documentUpdateListener)
+    this.publicKey = publicKey
   }
 
   updateFromEvents (events) {
@@ -96,110 +72,108 @@ export class NostrProvider extends ObservableV2 {
   }
 
   pendingUpdates = []
-
   sendPendingTimeout
+
+  async documentUpdateListener (update, origin) {
+    if (origin === this) {
+      return
+    }
+    if (origin?.provider) {
+      return
+    }
+    this?.pendingUpdates.push(update)
+
+    if (this?.sendPendingTimeout) {
+      clearTimeout(this.sendPendingTimeout)
+    }
+
+    // buffer every 100ms
+    if (this === undefined) {
+      return
+    }
+    this.sendPendingTimeout = setTimeout(() => {
+      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates))
+      this.pendingUpdates = []
+    }, 100)
+  }
 
   /**
   * Handles incoming events from nostr
   */
   processIncomingEvents = (events) => {
-    console.log('processIncomingEvents')
-    events.forEach((e) => {
-      console.log('received', e.id, 'from', e.pubkey, '(i am)', this.ndk._activeUser._pubkey)
-    })
-
     const update = this.updateFromEvents(events)
-
-    const docBefore = this.ydoc.toJSON()
     yjs.applyUpdate(this.ydoc, update, this)
-    const docAfter = this.ydoc.toJSON()
-    console.log(docBefore, 'after', docAfter)
   }
 
   async initialize () {
-    console.log('initialize')
-    return new Promise((resolve, reject) => {
-      try {
-        let eoseSeen = false
-        const initialEvents = []
-        const sub = this.ndk.subscribe([
-          {
-            ids: [this.nostrRoomCreateEventId],
-            kinds: [NOSTR_CRDT_EVENT_TYPE]
-            //,
-            // limit: 1,
-            // since: 0
-          },
-          {
-            '#e': [this.nostrRoomCreateEventId],
-            kinds: [NOSTR_CRDT_EVENT_TYPE]
-          }
-        ])
-        console.log('subscribed')
-        // console.log(sub)
-        sub.on('event', (e) => {
-          console.log('event')
-          if (!eoseSeen) {
-            initialEvents.push(e)
-          } else {
-            this.processIncomingEvents([e])
-          }
-        })
-        sub.on('close', (e) => {
-          console.log('close')
-          console.log(e)
-        })
-        sub.on('eose', () => {
-          console.log('eose')
-          eoseSeen = true
-          const initialLocalState = yjs.encodeStateAsUpdate(this.ydoc)
-          const initialLocalStateVector = yjs.encodeStateVectorFromUpdate(initialLocalState)
-          const deleteSetOnlyUpdate = yjs.diffUpdate(
-            initialLocalState,
-            initialLocalStateVector
+    try {
+      let eoseSeen = false
+      const initialEvents = []
+      const sub = this.ndk.subscribe([
+        {
+          ids: [this.nostrRoomCreateEventId],
+          kinds: [NOSTR_CRDT_EVENT_TYPE]
+          //,
+          // limit: 1,
+          // since: 0
+        },
+        {
+          '#e': [this.nostrRoomCreateEventId],
+          kinds: [NOSTR_CRDT_EVENT_TYPE]
+        }
+      ])
+      sub.on('event', (e) => {
+        if (!eoseSeen) {
+          initialEvents.push(e)
+        } else {
+          this.processIncomingEvents([e])
+        }
+      })
+      sub.on('eose', () => {
+        eoseSeen = true
+        const initialLocalState = yjs.encodeStateAsUpdate(this.ydoc)
+        const initialLocalStateVector = yjs.encodeStateVectorFromUpdate(initialLocalState)
+        const deleteSetOnlyUpdate = yjs.diffUpdate(
+          initialLocalState,
+          initialLocalStateVector
+        )
+        const oldSnapshot = yjs.snapshot(this.ydoc)
+        // This can fail because of no access to room. Because the room history should always be available,
+        // we don't catch this event here
+        const update = this.updateFromEvents(initialEvents)
+        yjs.applyUpdate(this.ydoc, update, this)
+        // this.emit('documentAvailable')
+        // Next, find if there are local changes that haven't been synced to the server
+        const remoteStateVector = yjs.encodeStateVectorFromUpdate(update)
+        const missingOnWire = yjs.diffUpdate(
+          initialLocalState,
+          remoteStateVector
+        )
+        // missingOnWire will always contain the entire deleteSet on startup.
+        // Unfortunately diffUpdate doesn't work well with deletes. In the if-statement
+        // below, we try to detect when missingOnWire only contains the deleteSet, with
+        // deletes that already exist on the wire
+        if (
+          arrayBuffersAreEqual(
+            deleteSetOnlyUpdate.buffer,
+            missingOnWire.buffer
           )
-          const oldSnapshot = yjs.snapshot(this.ydoc)
-          // This can fail because of no access to room. Because the room history should always be available,
-          // we don't catch this event here
-          const update = this.updateFromEvents(initialEvents)
-          yjs.applyUpdate(this.ydoc, update, this)
-          console.log('updateapplied')
-          this.emit('documentAvailable')
-          // Next, find if there are local changes that haven't been synced to the server
-          const remoteStateVector = yjs.encodeStateVectorFromUpdate(update)
-          const missingOnWire = yjs.diffUpdate(
-            initialLocalState,
-            remoteStateVector
-          )
-          // missingOnWire will always contain the entire deleteSet on startup.
-          // Unfortunately diffUpdate doesn't work well with deletes. In the if-statement
-          // below, we try to detect when missingOnWire only contains the deleteSet, with
-          // deletes that already exist on the wire
-          if (
-            arrayBuffersAreEqual(
-              deleteSetOnlyUpdate.buffer,
-              missingOnWire.buffer
-            )
-          ) {
-            // TODO: instead of next 3 lines, we can probably get deleteSet directly from 'update'
-            const serverDoc = new yjs.Doc()
-            yjs.applyUpdate(serverDoc, update)
-            const serverSnapshot = yjs.snapshot(serverDoc)
-            // TODO: could also compare whether snapshot equal? instead of snapshotContainsAllDeletes?
-            if (snapshotContainsAllDeletes(serverSnapshot, oldSnapshot)) {
-              // missingOnWire only contains a deleteSet with items that are already in the deleteSet on server
-              resolve('success')
-            }
+        ) {
+          // TODO: instead of next 3 lines, we can probably get deleteSet directly from 'update'
+          const serverDoc = new yjs.Doc()
+          yjs.applyUpdate(serverDoc, update)
+          const serverSnapshot = yjs.snapshot(serverDoc)
+          // TODO: could also compare whether snapshot equal? instead of snapshotContainsAllDeletes?
+          if (snapshotContainsAllDeletes(serverSnapshot, oldSnapshot)) {
+            // missingOnWire only contains a deleteSet with items that are already in the deleteSet on server
           }
-          if (missingOnWire.length > 2) {
-            this.publishUpdate(missingOnWire)
-          }
-          resolve('success')
-        })
-      } catch (e) {
-        console.error(e)
-        reject(e)
-      }
-    })
+        }
+        if (missingOnWire.length > 2) {
+          this.publishUpdate(missingOnWire)
+        }
+      })
+    } catch (e) {
+      console.error(e)
+    }
   }
 }

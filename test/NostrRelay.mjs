@@ -2,7 +2,7 @@
 // https://github.com/YousefED/nostr-crdt/blob/main/packages/nostr-crdt/src/InMemoryRelayServer.ts
 
 import { WebSocketServer } from 'ws'
-import { matchFilters } from 'nostr-tools'
+// import { matchFilters } from 'nostr-tools'
 export class NostrRelay {
   events = []
   wss
@@ -21,10 +21,10 @@ export class NostrRelay {
           const filters = data.slice(2)
           this.subs.set(sub, { filters, ws })
           for (const event of this.events) {
-            if (matchFilters(filters, event)) {
-              // console.log('sending event to sub %s', sub, JSON.stringify(['EVENT', sub, event]))
-              ws.send(JSON.stringify(['EVENT', sub, event]))
-            }
+            // if (matchFilters(filters, event)) {
+            // console.log('sending event to sub %s', sub, JSON.stringify(['EVENT', sub, event]))
+            ws.send(JSON.stringify(['EVENT', sub, event]))
+            // }
           }
           // console.log('sending eose to sub %s', sub, JSON.stringify(['EOSE', sub]))
           ws.send(JSON.stringify(['EOSE', sub]))
@@ -32,14 +32,14 @@ export class NostrRelay {
           const event = data[1]
           this.events.push(event)
           for (const [sub, data] of this.subs) {
-            if (matchFilters(data.filters, event)) {
-              // console.log(
-              //   'sending event to sub %s',
-              //   sub,
-              //   JSON.stringify(['EVENT', sub, event])
-              // )
-              data.ws.send(JSON.stringify(['EVENT', sub, event]))
-            }
+            // if (matchFilters(data.filters, event)) {
+            // console.log(
+            //   'sending event to sub %s',
+            //   sub,
+            //   JSON.stringify(['EVENT', sub, event])
+            // )
+            data.ws.send(JSON.stringify(['EVENT', sub, event]))
+            // }
           }
         } else if (data && data[0] === 'CLOSE') {
           const sub = data[1]

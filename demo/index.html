@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>y-ndk demo</title>
+    <script type="module" src="index.mjs"></script>
+</head>
+<body>
+  <form id="y-ndk-room" onsubmit="return false">
+    Nostr Private Key: 
+    <br>
+    <input 
+      type="text"
+      id="private-nostr-key"
+      name="private-nostr-key"
+      value="d334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b"
+    >
+    <br>
+    <br>
+    <label for="nostr-relays">nostr relays:</label>
+    <br>
+    <select name="nostr-relays" id="nostr-relays" multiple="multiple">
+      <option value="ws://0.0.0.0:8080">ws://0.0.0.0:8080</option>
+      <option value="wss://fictionmachine.io">wss://fictionmachine.io</option>
+      <option value="relay.snort.social">relay.snort.social</option>
+    </select>
+    <br>
+    <input type="submit">
+  </form>
+  <br>
+  <form id="roomid" onsubmit="return false">
+    <input 
+      type="text"
+      id="roomid"
+      name="roomid"
+    >
+    <br>
+    <br>
+    <input type="submit">
+  </form>
+  <pre>
+example key
+public key:          c753997e3b081c168288243bf61d35b20e1a64502a4305e4a6b33ace9fe20adc
+private key:         d334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b
+public key (npub):   npub1cafejl3mpqwpdq5gysalv8f4kg8p5ezs9fpste9xkvava8lzptwqpc6fut
+private key (nsec):  nsec16v6dph0hsx543dqs7mc8nsxvehs0d4mt4h9sgwl4ytkzh3mujcdscz5gsn
+nostr relays:        ['wss://nostr.fictionmachine.io']
+  </pre>
+  <pre id="nostrRoomsJSON"></pre>
+</body>
+</html>

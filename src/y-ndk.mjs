@@ -4,13 +4,19 @@ import {
   fromBase64
 } from 'lib0/buffer'
 import * as yjs from 'yjs'
-import {
-  NDKEvent
+import NDK, {
+  NDKEvent,
+  NDKPrivateKeySigner
 } from '@nostr-dev-kit/ndk'
 import {
   arrayBuffersAreEqual,
   snapshotContainsAllDeletes
 } from './util.mjs'
+
+export {
+  NDK,
+  NDKPrivateKeySigner
+}
 
 export async function createNostrCRDTRoom (
   ndk,
@@ -38,6 +44,8 @@ export async function createNostrCRDTRoom (
     ndk.publish(ndkEvent)
   })
 }
+
+export const hello = () => console.log('hello from y-ndk.js')
 export class NostrProvider extends ObservableV2 {
   constructor (
     ydoc,
@@ -77,6 +85,7 @@ export class NostrProvider extends ObservableV2 {
   sendPendingTimeout
 
   async documentUpdateListener (update, origin) {
+    // https://discuss.yjs.dev/t/how-to-distinguish-which-user-triggered-this-update/2584
     if (origin === this) {
       return
     }

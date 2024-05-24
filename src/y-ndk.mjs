@@ -12,6 +12,7 @@ import {
   arrayBuffersAreEqual,
   snapshotContainsAllDeletes
 } from './util.mjs'
+import box from 'private-box'
 
 export {
   NDK,
@@ -22,7 +23,8 @@ export async function createNostrCRDTRoom (
   ndk,
   label,
   initialLocalState,
-  YJS_UPDATE_EVENT_KIND
+  YJS_UPDATE_EVENT_KIND,
+  subscribers
 ) {
   // plagiarized from:
   // https://github.com/YousefED/nostr-crdt/blob/main/packages/nostr-crdt/src/createNostrCRDTRoom.ts
@@ -39,20 +41,27 @@ export async function createNostrCRDTRoom (
     const ndkEvent = new NDKEvent(ndk)
     ndkEvent.created_at = Math.floor(Date.now() / 1000)
     ndkEvent.kind = YJS_UPDATE_EVENT_KIND
-    ndkEvent.content = toBase64(initialLocalState)
+    if (subscribers !== undefined) {
+      const ctxt = box.multibox(Buffer.from(initialLocalState), subscribers)
+      ndkEvent.content = toBase64(ctxt)
+    } else {
+      ndkEvent.content = toBase64(initialLocalState)
+    }
     ndkEvent.tags = [['crdt', label]]
     ndk.publish(ndkEvent)
   })
 }
 
-export const hello = () => console.log('hello from y-ndk.js')
+// export const hello = () => console.log('hello from y-ndk.js')
 export class NostrProvider extends ObservableV2 {
   constructor (
     ydoc,
     nostrRoomCreateEventId,
     ndk,
     publicKey,
-    YJS_UPDATE_EVENT_KIND
+    YJS_UPDATE_EVENT_KIND,
+    subscribers,
+    decryptSecretKey
   ) {
     super()
     this.ydoc = ydoc
@@ -61,11 +70,20 @@ export class NostrProvider extends ObservableV2 {
     this.ydoc.on('update', this.documentUpdateListener)
     this.publicKey = publicKey
     this.YJS_UPDATE_EVENT_KIND = YJS_UPDATE_EVENT_KIND
+    this.subscribers = subscribers
+    this.decryptSecretKey = decryptSecretKey
   }
 
   updateFromEvents (events) {
-    // Create a yjs update from the events
-    const updates = events.map((e) => new Uint8Array(fromBase64(e.content)))
+    let updates = null
+
+    updates = events.map((e) => {
+      if (this.decryptSecretKey) {
+        return new Uint8Array(box.multibox_open(fromBase64(e.content), this.decryptSecretKey))
+      } else {
+        return new Uint8Array(fromBase64(e.content))
+      }
+    })
     const update = yjs.mergeUpdates(updates)
     return update
   }
@@ -74,7 +92,12 @@ export class NostrProvider extends ObservableV2 {
     const ndkEvent = new NDKEvent(this.ndk)
     ndkEvent.kind = this.YJS_UPDATE_EVENT_KIND
     ndkEvent.created_at = Math.floor(Date.now() / 1000)
-    ndkEvent.content = toBase64(update)
+    if (this.subscribers) {
+      const ctxt = box.multibox(Buffer.from(update), this.subscribers)
+      ndkEvent.content = toBase64(ctxt)
+    } else {
+      ndkEvent.content = toBase64(update)
+    }
     ndkEvent.tags = [
       ['e', this.nostrRoomCreateEventId]
     ]
@@ -103,7 +126,7 @@ export class NostrProvider extends ObservableV2 {
       return
     }
     this.sendPendingTimeout = setTimeout(() => {
-      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates))
+      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates), this.subscribers)
       this.pendingUpdates = []
     }, 100)
   }

@@ -1,6 +1,7 @@
 import { runTests } from 'lib0/testing'
 import * as log from 'lib0/logging'
 import * as yndk from './y-ndk.test.mjs'
+import * as yndkPrivate from './y-ndk-private.test.mjs'
 import { isBrowser, isNode } from 'lib0/environment.js'
 
 if (isBrowser) {
@@ -9,7 +10,8 @@ if (isBrowser) {
 }
 
 runTests({
-  yndk
+  yndk,
+  yndkPrivate
 }).then(success => {
   if (isNode) {
     process.exit(success ? 0 : 1)

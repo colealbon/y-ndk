@@ -1,6 +1,7 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve'
+// import nodePolyfills from 'rollup-plugin-polyfill-node'
 import commonjs from '@rollup/plugin-commonjs'
-import builtins from 'rollup-plugin-node-builtins'
+// import builtins from 'rollup-plugin-node-builtins'
 import globals from 'rollup-plugin-node-globals'
 import alias from '@rollup/plugin-alias'
 
@@ -10,13 +11,13 @@ export default [
     output: [{
       file: 'dist/y-ndk.mjs',
       format: 'esm',
-      name: 'y-ndk',
+      name: 'yndk',
       sourcemap: true
     }],
     plugins: [
       commonjs(),
       nodeResolve({
-        skip: ['yjs']
+        skip: ['yjs', 'crypto']
       })
     ]
   },
@@ -25,7 +26,7 @@ export default [
     output: [{
       file: 'demo/y-ndk.mjs',
       format: 'esm',
-      name: 'y-nndk',
+      name: 'yndk',
       sourcemap: true
     }],
     plugins: [
@@ -38,12 +39,15 @@ export default [
     output: [{
       file: 'demo/index.mjs',
       format: 'esm',
-      name: 'y-ndk-demo',
+      name: 'yndk',
       sourcemap: true
     }],
     plugins: [
-      commonjs(),
+      // nodePolyfills(),
       nodeResolve(
+        {
+          mainFields: ['module', 'browser', 'main']
+        },
         alias({
           entries: [
             {
@@ -52,9 +56,7 @@ export default [
             }
           ]
         })
-      ),
-      builtins(),
-      globals()
+      )
     ]
   }
 ]

@@ -2,7 +2,7 @@ import { nodeResolve } from '@rollup/plugin-node-resolve'
 // import nodePolyfills from 'rollup-plugin-polyfill-node'
 import commonjs from '@rollup/plugin-commonjs'
 // import builtins from 'rollup-plugin-node-builtins'
-import globals from 'rollup-plugin-node-globals'
+// import globals from 'rollup-plugin-node-globals'
 import alias from '@rollup/plugin-alias'
 
 export default [

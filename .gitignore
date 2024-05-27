@@ -2,5 +2,5 @@ node_modules
 dist
 pnpm-lock.yaml
 demo/y-ndk.*
-demo/index.mjs
-demo/index.mjs.*
+demo/bundle.mjs
+demo/bundle.mjs.map

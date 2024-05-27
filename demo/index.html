@@ -1,32 +1,120 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8"/>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
     <title>y-ndk demo</title>
-    <script type="module" src="index.mjs"></script>
-</head>
-<body>
-  <form id="y-ndk-room" onsubmit="return false">
-    Nostr Private Key: 
-    <br>
-    <input 
-      type="text"
-      id="private-nostr-key"
-      name="private-nostr-key"
-      value="d334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b"
-    >
-    <br>
-    <br>
-    <label for="nostr-relays">nostr relays:</label>
-    <br>
-    <select name="nostr-relays" id="nostr-relays" multiple="multiple">
-      <option value="ws://0.0.0.0:8080">ws://0.0.0.0:8080</option>
-      <option value="wss://fictionmachine.io">wss://fictionmachine.io</option>
-      <option value="relay.snort.social">relay.snort.social</option>
-    </select>
-    <br>
-    <input type="submit">
-  </form>
+  </head>
+  <body>
+    <main class="container">
+      <form id="y-ndk-room" onsubmit="return false">
+        <fieldset>
+          <label>
+            Nostr Event Kind
+            <input
+              name="nostr-event-kind"
+            />
+          </label>
+          <label>
+            Nostr Relay
+            <input
+              name="nostr-relay"
+            />
+          </label>
+          <!-- run a nostr relay like nostr-rs-relay -->
+          <!-- RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay -->
+          <label>
+            Private Room Key
+            <input
+              name="private-nostr-room-key"
+            />
+          </label>
+        </fieldset>
+        <input
+          type="submit"
+          value="Create Nostr Room"
+        />
+      </form>
+      <form id="y-ndk-provider" onsubmit="return false">
+        <fieldset>
+          <label>
+            Nostr Room ID
+            <input
+              name="nostr-room-event-id"
+            />
+          </label>
+        </fieldset>
+      </form>
+      <pre id="output"></pre>
+    </main>
+    <!-- <script src='./noble-hashes.js'></script>
+    <script src='./noble-curves.js'></script> -->
+    <script type='module'>
+      import {
+        defaultNostrRoomPayload,
+        demoCreateNostrRoom
+      } from './bundle.mjs'
+      let yNostrRoomForm = document.querySelector('#y-ndk-room')
+      let yNostrProviderForm = document.querySelector('#y-ndk-provider')
+      yNostrRoomForm['nostr-event-kind'].value = defaultNostrRoomPayload()['nostr-event-kind']
+      yNostrRoomForm['nostr-relay'].value = defaultNostrRoomPayload()['nostr-relay']
+      yNostrRoomForm['private-nostr-room-key'].value = defaultNostrRoomPayload()['private-nostr-room-key']
+      document.querySelector('#output').innerText = JSON.stringify(defaultNostrRoomPayload(), null, 2)
+      yNostrRoomForm.addEventListener('submit', async event => {
+        event.preventDefault()
+        const roomOpts = {}
+        roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
+        roomOpts.relay = yNostrRoomForm['nostr-relay'].value
+        roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
+        const roomId = await demoCreateNostrRoom(roomOpts)
+        yNostrProviderForm['nostr-room-event-id'].value  = roomId
+        //document.querySelector('#output').innerText = `${JSON.stringify(roomId, null, 2)}`
+      })
+      yNostrProviderForm.addEventListener('submit', async event => {
+        event.preventDefault()
+        // const roomOpts = {}
+        // roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
+        // roomOpts.relay = yNostrRoomForm['nostr-relay'].value
+        // roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
+        // const roomId = await demoCreateNostrRoom(roomOpts)
+        // document.querySelector('#y-ndk-provider').innerText = roomId
+        //document.querySelector('#output').innerText = `${JSON.stringify(roomId, null, 2)}`
+      })
+    </script>
+  </body>
+</html>
+
+<!-- // const roomOpts = {}
+// const roomYdoc = new yjs.Doc()
+// roomOpts.explicitRelayUrls = [yNostrRoomForm['nostr-relay'].value]
+// const roomPrivateKey = yNostrRoomForm['private-nostr-room-key'].value
+// console.log(roomPrivateKey)
+// const skSigner = await new NDK.NDKPrivateKeySigner(roomPrivateKey)
+// roomOpts.signer = skSigner
+// roomOpts.activeUser = roomOpts.signer.user()
+// const roomNdk = new NDK(roomOpts)
+// await roomNdk.connect()
+// const initialLocalStateRoom = yjs.encodeStateAsUpdate(roomYdoc)
+// const nostrRoomId = await createNostrCRDTRoom(
+//   roomNdk,
+//   'testWebApp',
+//   initialLocalStateRoom,
+//   YJS_UPDATE_EVENT_KIND
+// )
+// document.querySelector('#output').innerText = `${JSON.stringify({
+//   'nostr-room-event-id': nostrRoomId
+// }, null, 2
+// )}`
+
+// document.querySelector('#output').innerText = `${JSON.stringify({
+//   'nostr-event-kind': yNostrRoomForm['nostr-event-kind'].value,
+//   'nostr-relay': yNostrRoomForm['nostr-relay'].value,
+//   'private-nostr-room-key': yNostrRoomForm['private-nostr-room-key'].value
+// }, null, 2
+// )}` -->
+<!-- <body>
   <br>
   <form id="roomid" onsubmit="return false">
     <input 
@@ -39,13 +127,13 @@
     <input type="submit">
   </form>
   <pre>
-example key
+example secp256k nostr
 public key:          c753997e3b081c168288243bf61d35b20e1a64502a4305e4a6b33ace9fe20adc
 private key:         d334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b
 public key (npub):   npub1cafejl3mpqwpdq5gysalv8f4kg8p5ezs9fpste9xkvava8lzptwqpc6fut
 private key (nsec):  nsec16v6dph0hsx543dqs7mc8nsxvehs0d4mt4h9sgwl4ytkzh3mujcdscz5gsn
 nostr relays:        ['wss://nostr.fictionmachine.io']
   </pre>
-  <pre id="nostrRoomsJSON"></pre>
+  <pre id="nostrRoomsJSON"></pre> -->
 </body>
 </html>

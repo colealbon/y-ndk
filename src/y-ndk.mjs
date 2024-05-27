@@ -4,27 +4,20 @@ import {
   fromBase64
 } from 'lib0/buffer'
 import * as yjs from 'yjs'
-import NDK, {
-  NDKEvent,
-  NDKPrivateKeySigner
+import {
+  NDKEvent
 } from '@nostr-dev-kit/ndk'
 import {
   arrayBuffersAreEqual,
   snapshotContainsAllDeletes
 } from './util.mjs'
-import box from 'private-box'
-
-export {
-  NDK,
-  NDKPrivateKeySigner
-}
 
 export async function createNostrCRDTRoom (
   ndk,
   label,
   initialLocalState,
   YJS_UPDATE_EVENT_KIND,
-  subscribers
+  encrypt = (passthrough) => passthrough
 ) {
   // plagiarized from:
   // https://github.com/YousefED/nostr-crdt/blob/main/packages/nostr-crdt/src/createNostrCRDTRoom.ts
@@ -41,18 +34,14 @@ export async function createNostrCRDTRoom (
     const ndkEvent = new NDKEvent(ndk)
     ndkEvent.created_at = Math.floor(Date.now() / 1000)
     ndkEvent.kind = YJS_UPDATE_EVENT_KIND
-    if (subscribers !== undefined) {
-      const ctxt = box.multibox(Buffer.from(initialLocalState), subscribers)
-      ndkEvent.content = toBase64(ctxt)
-    } else {
-      ndkEvent.content = toBase64(initialLocalState)
-    }
+    ndkEvent.content = toBase64(encrypt(initialLocalState))
     ndkEvent.tags = [['crdt', label]]
     ndk.publish(ndkEvent)
   })
 }
 
-// export const hello = () => console.log('hello from y-ndk.js')
+export const hello = () => console.log('hello from y-ndk.js')
+
 export class NostrProvider extends ObservableV2 {
   constructor (
     ydoc,
@@ -60,8 +49,8 @@ export class NostrProvider extends ObservableV2 {
     ndk,
     publicKey,
     YJS_UPDATE_EVENT_KIND,
-    subscribers,
-    decryptSecretKey
+    encrypt = (passthrough) => passthrough,
+    decrypt = (passthrough) => passthrough
   ) {
     super()
     this.ydoc = ydoc
@@ -70,19 +59,14 @@ export class NostrProvider extends ObservableV2 {
     this.ydoc.on('update', this.documentUpdateListener)
     this.publicKey = publicKey
     this.YJS_UPDATE_EVENT_KIND = YJS_UPDATE_EVENT_KIND
-    this.subscribers = subscribers
-    this.decryptSecretKey = decryptSecretKey
+    this.encrypt = encrypt
+    this.decrypt = decrypt
   }
 
   updateFromEvents (events) {
     let updates = null
-
     updates = events.map((e) => {
-      if (this.decryptSecretKey) {
-        return new Uint8Array(box.multibox_open(fromBase64(e.content), this.decryptSecretKey))
-      } else {
-        return new Uint8Array(fromBase64(e.content))
-      }
+      return new Uint8Array(this.decrypt(fromBase64(e.content)))
     })
     const update = yjs.mergeUpdates(updates)
     return update
@@ -92,12 +76,7 @@ export class NostrProvider extends ObservableV2 {
     const ndkEvent = new NDKEvent(this.ndk)
     ndkEvent.kind = this.YJS_UPDATE_EVENT_KIND
     ndkEvent.created_at = Math.floor(Date.now() / 1000)
-    if (this.subscribers) {
-      const ctxt = box.multibox(Buffer.from(update), this.subscribers)
-      ndkEvent.content = toBase64(ctxt)
-    } else {
-      ndkEvent.content = toBase64(update)
-    }
+    ndkEvent.content = toBase64(this.encrypt(update))
     ndkEvent.tags = [
       ['e', this.nostrRoomCreateEventId]
     ]

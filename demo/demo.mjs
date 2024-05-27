@@ -2,6 +2,9 @@ import * as yjs from 'yjs'
 import NDK, {
   NDKPrivateKeySigner
 } from '@nostr-dev-kit/ndk'
+import NDK, {
+  NDKPrivateKeySigner
+} from '@nostr-dev-kit/ndk'
 import {
   NostrProvider,
   createNostrCRDTRoom

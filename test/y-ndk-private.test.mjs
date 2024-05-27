@@ -13,6 +13,7 @@ import {
   YJS_UPDATE_EVENT_KIND
 } from './magic.mjs'
 import chloride from 'chloride'
+import box from 'private-box'
 
 global.WebSocket = WebSocket
 const nostrRelay = new NostrRelay(9003)
@@ -29,6 +30,7 @@ export const testSyncMapPrivate = async tc => {
   const keypair = chloride.crypto_box_keypair
   const alice = await keypair()
   const bob = await keypair()
+  // keypair for encrypt/decrypt not tied to keys to sign nostr posts
   const subscribers = [alice, bob].map(subscriber => subscriber.publicKey)
   const aliceOpts = {}
   const aliceYdoc = new yjs.Doc()
@@ -41,13 +43,16 @@ export const testSyncMapPrivate = async tc => {
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
+
+  const encryptToSubscribers = input => box.multibox(Buffer.from(input), subscribers)
+  const decryptForAlice = input => box.multibox_open(input, alice.secretKey)
+
   const nostrRoomId = await createNostrCRDTRoom(
     aliceNdk,
     'testSyncYjsMap',
     initialLocalStateAlice,
     YJS_UPDATE_EVENT_KIND,
-    subscribers,
-    alice.secretKey
+    encryptToSubscribers
   )
 
   const nostrProviderAlice = new NostrProvider(
@@ -56,8 +61,8 @@ export const testSyncMapPrivate = async tc => {
     aliceNdk,
     alicePubkey,
     YJS_UPDATE_EVENT_KIND,
-    subscribers,
-    alice.secretKey
+    encryptToSubscribers,
+    decryptForAlice
   )
   nostrProviderAlice.initialize()
   const bobPrivateKey = '8bcdee1f90629b662c6347cb580665a884f89bfa23e38bb352b9d1a23301c0ca'
@@ -70,14 +75,15 @@ export const testSyncMapPrivate = async tc => {
   const bobNdk = new NDK(bobOpts)
   await bobNdk.connect()
   const bobYdoc = new yjs.Doc()
+  const decryptForBob = input => box.multibox_open(input, bob.secretKey)
   const nostrProviderBob = new NostrProvider(
     bobYdoc,
     nostrRoomId,
     bobNdk,
     bobPubkey,
     YJS_UPDATE_EVENT_KIND,
-    subscribers,
-    bob.secretKey
+    encryptToSubscribers,
+    decryptForBob
   )
   nostrProviderBob.initialize()
   aliceYdoc.getMap('test').set('contents', new yjs.Text('hello'))

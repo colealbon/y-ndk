@@ -46,94 +46,47 @@
             />
           </label>
         </fieldset>
+        <input
+          type="submit"
+          value="Create Nostr Provider"
+        />
       </form>
       <pre id="output"></pre>
     </main>
-    <!-- <script src='./noble-hashes.js'></script>
-    <script src='./noble-curves.js'></script> -->
     <script type='module'>
       import {
-        defaultNostrRoomPayload,
-        demoCreateNostrRoom
+        demoCreateNostrProvider,
+        demoCreateNostrRoom,
+        defaultNostrRoomPayload
       } from './bundle.mjs'
+      let roomId = ''
       let yNostrRoomForm = document.querySelector('#y-ndk-room')
       let yNostrProviderForm = document.querySelector('#y-ndk-provider')
       yNostrRoomForm['nostr-event-kind'].value = defaultNostrRoomPayload()['nostr-event-kind']
       yNostrRoomForm['nostr-relay'].value = defaultNostrRoomPayload()['nostr-relay']
       yNostrRoomForm['private-nostr-room-key'].value = defaultNostrRoomPayload()['private-nostr-room-key']
       document.querySelector('#output').innerText = JSON.stringify(defaultNostrRoomPayload(), null, 2)
+     
       yNostrRoomForm.addEventListener('submit', async event => {
         event.preventDefault()
         const roomOpts = {}
         roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
         roomOpts.relay = yNostrRoomForm['nostr-relay'].value
         roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
-        const roomId = await demoCreateNostrRoom(roomOpts)
+        roomId = await demoCreateNostrRoom(
+          roomOpts
+        )
         yNostrProviderForm['nostr-room-event-id'].value  = roomId
-        //document.querySelector('#output').innerText = `${JSON.stringify(roomId, null, 2)}`
       })
       yNostrProviderForm.addEventListener('submit', async event => {
         event.preventDefault()
-        // const roomOpts = {}
-        // roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
-        // roomOpts.relay = yNostrRoomForm['nostr-relay'].value
-        // roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
-        // const roomId = await demoCreateNostrRoom(roomOpts)
-        // document.querySelector('#y-ndk-provider').innerText = roomId
-        //document.querySelector('#output').innerText = `${JSON.stringify(roomId, null, 2)}`
+        const relay = yNostrRoomForm['nostr-relay'].value
+        const output = await demoCreateNostrProvider({
+          roomId: roomId,
+          relay: [relay]
+        })
+        document.querySelector('#output').innerText = `${JSON.stringify(output, null, 2)}`
       })
     </script>
   </body>
-</html>
-
-<!-- // const roomOpts = {}
-// const roomYdoc = new yjs.Doc()
-// roomOpts.explicitRelayUrls = [yNostrRoomForm['nostr-relay'].value]
-// const roomPrivateKey = yNostrRoomForm['private-nostr-room-key'].value
-// console.log(roomPrivateKey)
-// const skSigner = await new NDK.NDKPrivateKeySigner(roomPrivateKey)
-// roomOpts.signer = skSigner
-// roomOpts.activeUser = roomOpts.signer.user()
-// const roomNdk = new NDK(roomOpts)
-// await roomNdk.connect()
-// const initialLocalStateRoom = yjs.encodeStateAsUpdate(roomYdoc)
-// const nostrRoomId = await createNostrCRDTRoom(
-//   roomNdk,
-//   'testWebApp',
-//   initialLocalStateRoom,
-//   YJS_UPDATE_EVENT_KIND
-// )
-// document.querySelector('#output').innerText = `${JSON.stringify({
-//   'nostr-room-event-id': nostrRoomId
-// }, null, 2
-// )}`
-
-// document.querySelector('#output').innerText = `${JSON.stringify({
-//   'nostr-event-kind': yNostrRoomForm['nostr-event-kind'].value,
-//   'nostr-relay': yNostrRoomForm['nostr-relay'].value,
-//   'private-nostr-room-key': yNostrRoomForm['private-nostr-room-key'].value
-// }, null, 2
-// )}` -->
-<!-- <body>
-  <br>
-  <form id="roomid" onsubmit="return false">
-    <input 
-      type="text"
-      id="roomid"
-      name="roomid"
-    >
-    <br>
-    <br>
-    <input type="submit">
-  </form>
-  <pre>
-example secp256k nostr
-public key:          c753997e3b081c168288243bf61d35b20e1a64502a4305e4a6b33ace9fe20adc
-private key:         d334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b
-public key (npub):   npub1cafejl3mpqwpdq5gysalv8f4kg8p5ezs9fpste9xkvava8lzptwqpc6fut
-private key (nsec):  nsec16v6dph0hsx543dqs7mc8nsxvehs0d4mt4h9sgwl4ytkzh3mujcdscz5gsn
-nostr relays:        ['wss://nostr.fictionmachine.io']
-  </pre>
-  <pre id="nostrRoomsJSON"></pre> -->
-</body>
 </html>

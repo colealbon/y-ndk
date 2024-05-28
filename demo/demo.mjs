@@ -3,14 +3,14 @@ import NDK, {
   NDKPrivateKeySigner
 } from '@nostr-dev-kit/ndk'
 import {
-  // NostrProvider,
+  NostrProvider,
   createNostrCRDTRoom
 } from './y-ndk.mjs'
 
 import {
-  YJS_UPDATE_EVENT_KIND,
   NOSTR_RELAY,
-  PRIVATE_NOSTR_ROOM_KEY
+  PRIVATE_NOSTR_ROOM_KEY,
+  YJS_UPDATE_EVENT_KIND
 } from './magic.mjs'
 
 export const defaultNostrRoomPayload = () => ({
@@ -21,58 +21,71 @@ export const defaultNostrRoomPayload = () => ({
 
 export const demoCreateNostrRoom = async (params) => {
   const {
-    // nostrEventKind,
     relay,
     privateNostrRoomKey
   } = params
-  return new Promise((resolve, reject) => {
-    const roomOpts = {}
-    roomOpts.signer = new NDKPrivateKeySigner(privateNostrRoomKey)
-    roomOpts.explicitRelayUrls = [relay]
-    roomOpts.activeUser = roomOpts.signer.user()
-    const roomNdk = new NDK(roomOpts)
-    roomNdk.connect()
-      .then(() => {
-        const roomYdoc = new yjs.Doc()
-        const initialLocalStateRoom = yjs.encodeStateAsUpdate(roomYdoc)
-        createNostrCRDTRoom(
-          roomNdk,
-          'testWebApp',
-          initialLocalStateRoom,
-          YJS_UPDATE_EVENT_KIND
-        ).then(roomId => resolve(roomId))
-      })
-  })
-//   const nostrProviderRoom = new NostrProvider(
-//     roomYdoc,
-//     nostrRoomId,
-//     roomNdk,
-//     'roomLabel',
-//     YJS_UPDATE_EVENT_KIND
-//   )
-//   nostrProviderRoom.initialize()
-//   const guestOpts = {}
-//   const guestYdoc = new yjs.Doc()
-//   guestOpts.explicitRelayUrls = Object.values(yNostrRoomForm['nostr-relays'].options)
-//     .filter(option => option.selected)
-//     .map(option => option.value)
-//   const guestPrivateKey = '8bcdee1f90629b662c6347cb580665a884f89bfa23e38bb352b9d1a23301c0ca'
-//   // const guestPrivateKey = yNostrRoomForm['private-nostr-key'].value
-//   const guestSigner = await new NDKPrivateKeySigner(guestPrivateKey)
-//   guestOpts.signer = guestSigner
-//   guestOpts.activeUser = guestOpts.signer.user()
-//   const guestNdk = new NDK(guestOpts)
-//   await guestNdk.connect()
-//   const nostrProviderGuest = new NostrProvider(
-//     guestYdoc,
-//     nostrRoomId,
-//     guestNdk,
-//     'roomLabel',
-//     YJS_UPDATE_EVENT_KIND
-//   )
-//   nostrProviderGuest.initialize()
-//   roomYdoc.getMap('test').set('contents', new yjs.Text('success yjs -> nostr -> yjs'))
-//   await new Promise((resolve) => setTimeout(resolve, 2000))
-//   const roundTripResult = guestYdoc.getMap('test').get('contents')?.toJSON()
-//   console.log(roundTripResult)
+  const roomOpts = {}
+  const skSigner = new NDKPrivateKeySigner(privateNostrRoomKey)
+  roomOpts.signer = skSigner
+  roomOpts.explicitRelayUrls = [relay]
+  roomOpts.activeUser = skSigner.user()
+  const roomNdk = new NDK(roomOpts)
+  await roomNdk.connect()
+  const ydoc = new yjs.Doc()
+  const initialLocalStateRoom = yjs.encodeStateAsUpdate(ydoc)
+  const nostrCRDTCreateEventId = await createNostrCRDTRoom(
+    roomNdk,
+    'testWebApp',
+    initialLocalStateRoom,
+    YJS_UPDATE_EVENT_KIND
+  )
+  return Promise.resolve(nostrCRDTCreateEventId)
+}
+export const demoCreateNostrProvider = async (params) => {
+  const {
+    relay,
+    roomId
+  } = params
+  const aliceOpts = {}
+  const aliceYdoc = new yjs.Doc()
+  aliceOpts.explicitRelayUrls = relay
+  const alicePrivateKey = 'd334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b'
+  const aliceSigner = new NDKPrivateKeySigner(alicePrivateKey)
+  const alicePubkey = (await aliceSigner.user()).pubkey
+  aliceOpts.signer = aliceSigner
+  aliceOpts.activeUser = aliceSigner.user()
+  aliceOpts.explicitRelayUrls = relay
+  const aliceNdk = new NDK(aliceOpts)
+  await aliceNdk.connect()
+  const nostrProviderAlice = new NostrProvider(
+    aliceYdoc,
+    roomId,
+    aliceNdk,
+    alicePubkey,
+    YJS_UPDATE_EVENT_KIND
+  )
+  nostrProviderAlice.initialize()
+
+  const bobPrivateKey = '8bcdee1f90629b662c6347cb580665a884f89bfa23e38bb352b9d1a23301c0ca'
+  const bobSigner = new NDKPrivateKeySigner(bobPrivateKey)
+  const bobPubkey = (await bobSigner.user()).pubkey
+  const bobOpts = {}
+  bobOpts.signer = bobSigner
+  bobOpts.activeUser = bobSigner.user()
+  bobOpts.explicitRelayUrls = relay
+  const bobNdk = new NDK(bobOpts)
+  await bobNdk.connect()
+  const bobYdoc = new yjs.Doc()
+  const nostrProviderBob = new NostrProvider(
+    bobYdoc,
+    roomId,
+    bobNdk,
+    bobPubkey,
+    YJS_UPDATE_EVENT_KIND
+  )
+  nostrProviderBob.initialize()
+  aliceYdoc.getMap('test').set('contents', new yjs.Text('it worked! this is hello via nostr'))
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
+  return bobReceive
 }

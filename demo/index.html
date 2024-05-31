@@ -34,10 +34,10 @@
         </fieldset>
         <input
           type="submit"
-          value="Create Nostr Room"
+          value="1. Create Nostr Room"
         />
       </form>
-      <form id="y-ndk-provider" onsubmit="return false">
+      <form id="test-cleartext" onsubmit="return false">
         <fieldset>
           <label>
             Nostr Room ID
@@ -45,26 +45,137 @@
               name="nostr-room-event-id"
             />
           </label>
+          <label>
+            simple message
+            <input
+              name="simple-message"
+            />
+          </label>
         </fieldset>
         <input
           type="submit"
-          value="Create Nostr Provider"
+          value="2. Round Trip ClearText"
         />
       </form>
+
       <pre id="output"></pre>
+      
+      <div class="grid">
+        <div>
+          <label>
+            player 1
+            <form id="player-1" onsubmit="return false">
+              message:
+              <input
+                name="simple-message"
+              />
+              <input
+                type="submit"
+                value="3. round trip encrypted"
+              />
+            </form>
+          </label>
+        </div>
+        <div>
+          <label>
+            player 2
+            <form id="player-2" onsubmit="return false">
+              <input
+                name="simple-message"
+              />
+              <input
+                type="submit"
+                value="post"
+              />
+            </form>
+          </label>
+        </div>
+        <div>
+          <label>
+            player 3
+            <form id="player-3" onsubmit="return false">
+              <input
+                name="simple-message"
+              />
+              <input
+                type="submit"
+                value="post"
+              />
+            </form>
+          </label>
+        </div>
+        <div>
+          <label>
+            player 4
+            <form id="player-4" onsubmit="return false">
+              <input
+                name="simple-message"
+              />
+              <input
+                type="submit"
+                value="post"
+              />
+            </form>
+          </label>
+        </div>
+        <div>
+          <label>
+            player 5
+            <form id="player-5" onsubmit="return false">
+              <input
+                name="simple-message"
+              />
+              <input
+                type="submit"
+                value="post"
+              />
+            </form>
+          </label>
+        </div>
+      </div>
     </main>
-    <script type='module'>
+    <script type='module'> 
+      import chloride from 'https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm'
       import {
-        demoCreateNostrProvider,
+        buffer
+        // buffer.toBase64,
+        // buffer.fromBase64
+      } from 'https://cdn.jsdelivr.net/npm/lib0@0.2.94/+esm'
+      import {
+        magicTestKeys
+      } from './magic.mjs'
+      import {
+        demoRoundTripClearText,
         demoCreateNostrRoom,
-        defaultNostrRoomPayload
+        defaultNostrRoomPayload,
+        demoMulticast
       } from './bundle.mjs'
+
+      const participants = magicTestKeys.map((participant) => {
+        return { ...participant, ...chloride.crypto_box_keypair() }
+      })
+
       let roomId = ''
       let yNostrRoomForm = document.querySelector('#y-ndk-room')
-      let yNostrProviderForm = document.querySelector('#y-ndk-provider')
+      let testClearTextForm = document.querySelector('#test-cleartext')
+      let player1Form = document.querySelector("#player-1")
+      player1Form['simple-message'].value = 'test message from player 1'
+      // const player1SecretKeyString = magicTestKeys[0].secretKey?.toString()
+      // player1Form['private-box-secret-key'].value = buffer.toBase64(participants[0].secretKey)
+      let player2Form = document.querySelector("#player-2")
+      let player3Form = document.querySelector("#player-3")
+      let player4Form = document.querySelector("#player-4")
+      let player5Form = document.querySelector("#player-5")
       yNostrRoomForm['nostr-event-kind'].value = defaultNostrRoomPayload()['nostr-event-kind']
       yNostrRoomForm['nostr-relay'].value = defaultNostrRoomPayload()['nostr-relay']
       yNostrRoomForm['private-nostr-room-key'].value = defaultNostrRoomPayload()['private-nostr-room-key']
+
+      // player1Form['player-1'].value = defaultNostrRoomPayload()['player-1']
+      // player2Form['player-2'].value = defaultNostrRoomPayload()['player-2']
+      // player3Form['player-3'].value = defaultNostrRoomPayload()['player-3']
+      // player4Form['player-4'].value = defaultNostrRoomPayload()['player-4']
+      // player5Form['player-5'].value = defaultNostrRoomPayload()['player-5']
+
       document.querySelector('#output').innerText = JSON.stringify(defaultNostrRoomPayload(), null, 2)
      
       yNostrRoomForm.addEventListener('submit', async event => {
@@ -73,19 +184,39 @@
         roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
         roomOpts.relay = yNostrRoomForm['nostr-relay'].value
         roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
-        roomId = await demoCreateNostrRoom(
-          roomOpts
-        )
-        yNostrProviderForm['nostr-room-event-id'].value  = roomId
+        roomId = await demoCreateNostrRoom(roomOpts)
+        testClearTextForm['nostr-room-event-id'].value = roomId
       })
-      yNostrProviderForm.addEventListener('submit', async event => {
+      testClearTextForm.addEventListener('submit', async event => {
         event.preventDefault()
         const relay = yNostrRoomForm['nostr-relay'].value
-        const output = await demoCreateNostrProvider({
+        const roomId = testClearTextForm['nostr-room-event-id'].value
+        // const participants = magicTestKeys.map(participant => participant.pubkey)
+        const output = await demoRoundTripClearText({
           roomId: roomId,
-          relay: [relay]
+          relay: relay,
+          simpleMessage: testClearTextForm['simple-message'].value
+          //,
+          // participants // string of chloride public keys 
         })
         document.querySelector('#output').innerText = `${JSON.stringify(output, null, 2)}`
+      })
+      player1Form.addEventListener('submit', async event => {
+        event.preventDefault()
+        const relay = yNostrRoomForm['nostr-relay'].value
+        const roomId = testClearTextForm['nostr-room-event-id'].value
+        const player1Value = player1Form['simple-message'].value
+        const sender = participants[0].secretKey
+        const recipients = participants.map(recipient => recipient.publicKey)
+        const output = await demoMulticast({
+          relay: relay,
+          roomId: roomId,
+          simpleMessage: player1Form['simple-message'].value,
+          sender: sender,
+          recipients: recipients
+        })
+        // const participants = magicTestKeys.map(participant => participant.pubkey)
+        player2Form['simple-message'].value = output
       })
     </script>
   </body>

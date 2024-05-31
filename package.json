@@ -9,8 +9,12 @@
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.8",
+    "crypto-js": "^4.2.0",
     "rollup": "^4.18.0",
     "standard": "^17.1.0"
+  },
+  "browser": {
+    "crypto": false
   },
   "dependencies": {
     "@nostr-dev-kit/ndk": "^2.8.2",

@@ -1,4 +1,5 @@
 import * as yjs from 'yjs'
+// import box from 'private-box'
 import NDK, {
   NDKPrivateKeySigner
 } from '@nostr-dev-kit/ndk'
@@ -13,7 +14,8 @@ import {
 import {
   NOSTR_RELAY,
   PRIVATE_NOSTR_ROOM_KEY,
-  YJS_UPDATE_EVENT_KIND
+  YJS_UPDATE_EVENT_KIND,
+  magicTestKeys
 } from './magic.mjs'
 
 export const defaultNostrRoomPayload = () => ({
@@ -27,15 +29,19 @@ export const demoCreateNostrRoom = async (params) => {
     relay,
     privateNostrRoomKey
   } = params
-  const roomOpts = {}
+  const ndkOpts = {}
   const skSigner = new NDKPrivateKeySigner(privateNostrRoomKey)
-  roomOpts.signer = skSigner
-  roomOpts.explicitRelayUrls = [relay]
-  roomOpts.activeUser = skSigner.user()
-  const roomNdk = new NDK(roomOpts)
+  ndkOpts.signer = skSigner
+  ndkOpts.explicitRelayUrls = [relay]
+  ndkOpts.activeUser = skSigner.user()
+  const roomNdk = new NDK(ndkOpts)
   await roomNdk.connect()
   const ydoc = new yjs.Doc()
   const initialLocalStateRoom = yjs.encodeStateAsUpdate(ydoc)
+  // const recipients = participants ? participants.map(recipient => recipient?.publicKey) : undefined
+  // const encryptToSubscribers = passthrough => passthrough
+  // const decryptForAlice = input => box.multibox_open(input, alice.secretKey)
+
   const nostrCRDTCreateEventId = await createNostrCRDTRoom(
     roomNdk,
     'testWebApp',
@@ -44,20 +50,20 @@ export const demoCreateNostrRoom = async (params) => {
   )
   return Promise.resolve(nostrCRDTCreateEventId)
 }
-export const demoCreateNostrProvider = async (params) => {
+export const demoRoundTripClearText = async (params) => {
   const {
     relay,
-    roomId
+    roomId,
+    simpleMessage
   } = params
   const aliceOpts = {}
   const aliceYdoc = new yjs.Doc()
-  aliceOpts.explicitRelayUrls = relay
   const alicePrivateKey = 'd334d0ddf781a958b410f6f079c0cccde0f6d76badcb043bf522ec2bc77c961b'
   const aliceSigner = new NDKPrivateKeySigner(alicePrivateKey)
   const alicePubkey = (await aliceSigner.user()).pubkey
   aliceOpts.signer = aliceSigner
   aliceOpts.activeUser = aliceSigner.user()
-  aliceOpts.explicitRelayUrls = relay
+  aliceOpts.explicitRelayUrls = [relay]
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
   const nostrProviderAlice = new NostrProvider(
@@ -75,7 +81,7 @@ export const demoCreateNostrProvider = async (params) => {
   const bobOpts = {}
   bobOpts.signer = bobSigner
   bobOpts.activeUser = bobSigner.user()
-  bobOpts.explicitRelayUrls = relay
+  bobOpts.explicitRelayUrls = [relay]
   const bobNdk = new NDK(bobOpts)
   await bobNdk.connect()
   const bobYdoc = new yjs.Doc()
@@ -87,8 +93,83 @@ export const demoCreateNostrProvider = async (params) => {
     YJS_UPDATE_EVENT_KIND
   )
   nostrProviderBob.initialize()
-  aliceYdoc.getMap('test').set('contents', new yjs.Text('it worked! this is hello via nostr'))
+  aliceYdoc.getMap('test').set('contents', new yjs.Text(simpleMessage))
   await new Promise((resolve) => setTimeout(resolve, 500))
   const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
   return bobReceive
+}
+
+export const demoMulticast = async (params) => {
+  const {
+    relay,
+    roomId,
+    simpleMessage,
+    sender,
+    recipients
+  } = params
+  console.log('hello from demoPlayer1Multicast')
+  console.log(relay)
+  console.log(roomId)
+  console.log(simpleMessage)
+  console.log(sender)
+  console.log(magicTestKeys)
+  console.log(recipients)
+  // return simpleMessage
+
+  const senderPrivateNostrKey = magicTestKeys[0].nostrPrivate
+  const senderSigner = new NDKPrivateKeySigner(senderPrivateNostrKey)
+  const senderPubkey = (await senderSigner.user()).pubkey
+  const senderYdoc = new yjs.Doc()
+  const senderOpts = {}
+  senderOpts.signer = senderSigner
+  senderOpts.activeUser = senderSigner.user()
+  senderOpts.explicitRelayUrls = [relay]
+  const senderNdk = new NDK(senderOpts)
+  await senderNdk.connect()
+  // const subscribers = magicTestKeys.map(subscriber => subscriber.publicKey)
+  const encryptToSubscribers = input => input
+  const decryptForPlayer1 = input => input
+  // const encryptToSubscribers = input => box.multibox(Buffer.from(input), subscribers)
+  // const decryptForPlayer1 = input => box.multibox_open(input, magicTestKeys[0].secretKey)
+  const nostrProviderPlayer1 = new NostrProvider(
+    senderYdoc,
+    roomId,
+    senderNdk,
+    senderPubkey,
+    YJS_UPDATE_EVENT_KIND,
+    encryptToSubscribers,
+    decryptForPlayer1
+  )
+  nostrProviderPlayer1.initialize()
+
+  senderYdoc.getMap('test').set('contents', new yjs.Text(simpleMessage))
+
+  const player2PrivateNostrKey = magicTestKeys[0].nostrPrivate
+  const player2Signer = new NDKPrivateKeySigner(player2PrivateNostrKey)
+  const player2Pubkey = (await player2Signer.user()).pubkey
+  const player2Ydoc = new yjs.Doc()
+  const player2Opts = {}
+  player2Opts.signer = player2Signer
+  player2Opts.activeUser = player2Signer.user()
+  player2Opts.explicitRelayUrls = [relay]
+  const player2Ndk = new NDK(player2Opts)
+  await player2Ndk.connect()
+  // // const subscribers = magicTestKeys.map(subscriber => subscriber.publicKey)
+  // const encryptToSubscribers = input => input
+  const decryptForPlayer2 = input => input
+  // // const encryptToSubscribers = input => box.multibox(Buffer.from(input), subscribers)
+  // // const decryptForPlayer1 = input => box.multibox_open(input, magicTestKeys[0].secretKey)
+  const nostrProviderPlayer2 = new NostrProvider(
+    player2Ydoc,
+    roomId,
+    player2Ndk,
+    player2Pubkey,
+    YJS_UPDATE_EVENT_KIND,
+    encryptToSubscribers,
+    decryptForPlayer2
+  )
+  nostrProviderPlayer2.initialize()
+
+  const player2Received = senderYdoc.getMap('test').get('contents')?.toJSON()
+  return player2Received
 }

@@ -3,8 +3,7 @@ import commonjs from '@rollup/plugin-commonjs'
 
 export default [
   {
-    external: ['yjs'],
-    // ['fs', 'path', 'crypto', 'sha256', '@noble/hashes'],
+    external: ['yjs', 'crypto', 'fs', 'path'], // [ 'sha256', '@noble/hashes'],
     input: 'src/y-ndk.mjs',
     output: [{
       file: 'dist/y-ndk.mjs',
@@ -24,6 +23,7 @@ export default [
     ]
   },
   {
+    external: ['fs', 'path'],
     input: 'demo/demo.mjs',
     output: [{
       file: 'demo/bundle.mjs',
@@ -33,7 +33,13 @@ export default [
     }],
     plugins: [
       commonjs(),
-      esbuildResolve()
+      esbuildResolve({
+        browser: true,
+        alias: {
+          yjs: 'yjs',
+          crypto: 'crypto-js'
+        }
+      })
     ]
   }
 ]

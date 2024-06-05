@@ -135,12 +135,10 @@
       </div>
     </main>
     <script type='module'> 
+      import buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
       import chloride from 'https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm'
-      import {
-        buffer
-        // buffer.toBase64,
-        // buffer.fromBase64
-      } from 'https://cdn.jsdelivr.net/npm/lib0@0.2.94/+esm'
+      import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+
       import {
         magicTestKeys
       } from './magic.mjs'
@@ -160,8 +158,6 @@
       let testClearTextForm = document.querySelector('#test-cleartext')
       let player1Form = document.querySelector("#player-1")
       player1Form['simple-message'].value = 'test message from player 1'
-      // const player1SecretKeyString = magicTestKeys[0].secretKey?.toString()
-      // player1Form['private-box-secret-key'].value = buffer.toBase64(participants[0].secretKey)
       let player2Form = document.querySelector("#player-2")
       let player3Form = document.querySelector("#player-3")
       let player4Form = document.querySelector("#player-4")
@@ -184,6 +180,7 @@
         roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
         roomOpts.relay = yNostrRoomForm['nostr-relay'].value
         roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
+        roomOpts.encryptToSubscribers = (passthrough => passthrough)
         roomId = await demoCreateNostrRoom(roomOpts)
         testClearTextForm['nostr-room-event-id'].value = roomId
       })
@@ -191,13 +188,10 @@
         event.preventDefault()
         const relay = yNostrRoomForm['nostr-relay'].value
         const roomId = testClearTextForm['nostr-room-event-id'].value
-        // const participants = magicTestKeys.map(participant => participant.pubkey)
         const output = await demoRoundTripClearText({
           roomId: roomId,
           relay: relay,
           simpleMessage: testClearTextForm['simple-message'].value
-          //,
-          // participants // string of chloride public keys 
         })
         document.querySelector('#output').innerText = `${JSON.stringify(output, null, 2)}`
       })
@@ -208,14 +202,16 @@
         const player1Value = player1Form['simple-message'].value
         const sender = participants[0].secretKey
         const recipients = participants.map(recipient => recipient.publicKey)
+        const encrypt = (input => privatebox.multibox(buffer.Buffer.from(input), recipients))
+        const decryptForPlayer2 = input => privatebox.multibox_open(input, participants[1].secretKey)
         const output = await demoMulticast({
           relay: relay,
           roomId: roomId,
           simpleMessage: player1Form['simple-message'].value,
-          sender: sender,
-          recipients: recipients
+          senderPrivateNostrKey: participants[0].nostrPrivate,
+          encrypt: encrypt,
+          decrypt: decryptForPlayer2
         })
-        // const participants = magicTestKeys.map(participant => participant.pubkey)
         player2Form['simple-message'].value = output
       })
     </script>

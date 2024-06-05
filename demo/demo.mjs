@@ -104,19 +104,10 @@ export const demoMulticast = async (params) => {
     relay,
     roomId,
     simpleMessage,
-    sender,
-    recipients
+    senderPrivateNostrKey,
+    encrypt,
+    decrypt
   } = params
-  console.log('hello from demoPlayer1Multicast')
-  console.log(relay)
-  console.log(roomId)
-  console.log(simpleMessage)
-  console.log(sender)
-  console.log(magicTestKeys)
-  console.log(recipients)
-  // return simpleMessage
-
-  const senderPrivateNostrKey = magicTestKeys[0].nostrPrivate
   const senderSigner = new NDKPrivateKeySigner(senderPrivateNostrKey)
   const senderPubkey = (await senderSigner.user()).pubkey
   const senderYdoc = new yjs.Doc()
@@ -126,25 +117,17 @@ export const demoMulticast = async (params) => {
   senderOpts.explicitRelayUrls = [relay]
   const senderNdk = new NDK(senderOpts)
   await senderNdk.connect()
-  // const subscribers = magicTestKeys.map(subscriber => subscriber.publicKey)
-  const encryptToSubscribers = input => input
-  const decryptForPlayer1 = input => input
-  // const encryptToSubscribers = input => box.multibox(Buffer.from(input), subscribers)
-  // const decryptForPlayer1 = input => box.multibox_open(input, magicTestKeys[0].secretKey)
   const nostrProviderPlayer1 = new NostrProvider(
     senderYdoc,
     roomId,
     senderNdk,
     senderPubkey,
     YJS_UPDATE_EVENT_KIND,
-    encryptToSubscribers,
-    decryptForPlayer1
+    encrypt
   )
   nostrProviderPlayer1.initialize()
 
-  senderYdoc.getMap('test').set('contents', new yjs.Text(simpleMessage))
-
-  const player2PrivateNostrKey = magicTestKeys[0].nostrPrivate
+  const player2PrivateNostrKey = magicTestKeys[1].nostrPrivate
   const player2Signer = new NDKPrivateKeySigner(player2PrivateNostrKey)
   const player2Pubkey = (await player2Signer.user()).pubkey
   const player2Ydoc = new yjs.Doc()
@@ -154,22 +137,19 @@ export const demoMulticast = async (params) => {
   player2Opts.explicitRelayUrls = [relay]
   const player2Ndk = new NDK(player2Opts)
   await player2Ndk.connect()
-  // // const subscribers = magicTestKeys.map(subscriber => subscriber.publicKey)
-  // const encryptToSubscribers = input => input
-  const decryptForPlayer2 = input => input
-  // // const encryptToSubscribers = input => box.multibox(Buffer.from(input), subscribers)
-  // // const decryptForPlayer1 = input => box.multibox_open(input, magicTestKeys[0].secretKey)
   const nostrProviderPlayer2 = new NostrProvider(
     player2Ydoc,
     roomId,
     player2Ndk,
     player2Pubkey,
     YJS_UPDATE_EVENT_KIND,
-    encryptToSubscribers,
-    decryptForPlayer2
+    encrypt,
+    decrypt
   )
   nostrProviderPlayer2.initialize()
 
-  const player2Received = senderYdoc.getMap('test').get('contents')?.toJSON()
+  senderYdoc.getMap('test').set('contents', new yjs.Text(simpleMessage))
+  await new Promise((resolve) => setTimeout(() => resolve(), 1000))
+  const player2Received = player2Ydoc.getMap('test').get('contents')?.toJSON()
   return player2Received
 }

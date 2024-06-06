@@ -1,5 +1,5 @@
 import * as yjs from 'yjs'
-// import box from 'private-box'
+
 import NDK, {
   NDKPrivateKeySigner
 } from '@nostr-dev-kit/ndk'

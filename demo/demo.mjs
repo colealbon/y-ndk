@@ -1,4 +1,8 @@
 import * as yjs from 'yjs'
+
+import NDK, {
+  NDKPrivateKeySigner
+} from '@nostr-dev-kit/ndk'
 import NDK, {
   NDKPrivateKeySigner
 } from '@nostr-dev-kit/ndk'
@@ -37,15 +41,7 @@ export const demoCreateNostrRoom = async (params) => {
   // const recipients = participants ? participants.map(recipient => recipient?.publicKey) : undefined
   // const encryptToSubscribers = passthrough => passthrough
   // const decryptForAlice = input => box.multibox_open(input, alice.secretKey)
-  const nostrCRDTCreateEventId = await createNostrCRDTRoom(
-    roomNdk,
-    'testWebApp',
-    initialLocalStateRoom,
-    YJS_UPDATE_EVENT_KIND
-  )
-  return Promise.resolve(nostrCRDTCreateEventId)
-}
-
+  
 export const demoRoundTripClearText = async (params) => {
   const {
     relay,

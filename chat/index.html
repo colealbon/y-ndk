@@ -26,9 +26,11 @@
                 <section id="keypair-section">
                     <details>
                         <summary>
-                            <h2>1. Encryption</h2>
+                            <h3>Encryption</h3>
                             public key:
-                            <pre id="display-public-key"></pre>
+                            <pre id="display-public-encryption-key"></pre>
+                            secret key:
+                            <pre id="display-secret-encryption-key"></pre>
                         </summary>
                         <button id="new-keypair">generate new key</button>
                         <form id="keypair-form" onsubmit="return false">
@@ -50,13 +52,12 @@
                             </fieldset>
                             <input type="submit" hidden></input>
                         </form>
-                        secret key: <pre id="display-secret-key"></pre>
                     </details>
                 </section>
                 <section id="participants-section">
                     <details>
                         <summary>
-                            <h2>2. Participants</h2>
+                            <h3>Participants</h3>
                             participants:
                             <pre id="participants"></pre>
                         </summary>
@@ -66,7 +67,7 @@
                                 <input
                                     name="public-key"
                                     type="text"
-                                    placeholder="Enter participant public key"
+                                    placeholder="Enter participant public key curve25519_pk hex"
                                     autocomplete="pkey"
                                 />
                                 <input type="submit"  hidden/>
@@ -77,7 +78,7 @@
                 <section id="relays-section">
                     <details>
                         <summary>
-                            <h2>3. Nostr Relays</h2>
+                            <h3>Nostr Relays</h3>
                             relays:
                             <pre id="relays"></pre>
                         </summary>
@@ -90,7 +91,7 @@
                                     placeholder="Enter nostr relay"
                                     autocomplete="relay"
                                 />
-                                <input type="submit"/>
+                                <input type="submit" hidden/>
                             </fieldset>
                         </form>
                     </details>
@@ -98,10 +99,11 @@
                 <section id="nostr-keypair-section">
                     <details>
                         <summary>
-                            <h2>4. Nostr Key</h2>
+                            <h3>Nostr Key</h3>
                             nostr room secret key: <pre id="display-nostr-secret-key"></pre>
+                            nostr room public key: <pre id="display-nostr-public-key"></pre>
                         </summary>
-                        <button id="new-nostr-key">generate new key</button>
+
                         <form id="nostr-keypair-form" onsubmit="return false">
                             <fieldset role="group">
                                 <input
@@ -110,6 +112,27 @@
                                     placeholder="Enter your nostr secret key"
                                     autocomplete="nostr-secret-key"
                                 />
+                                <button id="new-nostr-key">generate</button>
+                            </fieldset>
+                            <input type="submit" hidden></input>
+                        </form>
+                    </details>
+                </section>
+                <section id="nostr-roomid-section">
+                    <details>
+                        <summary>
+                            <h3>Nostr Room</h3>
+                            nostr room event id: <pre id="display-nostr-room-id"></pre>
+                        </summary>
+                        <form id="nostr-roomid-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="nostr-room-id"
+                                    type="text"
+                                    placeholder="Enter your nostr room id"
+                                    autocomplete="nostr-room-id"
+                                />
+                                <button id="new-nostr-room">generate</button>
                             </fieldset>
                             <input type="submit" hidden></input>
                         </form>
@@ -118,7 +141,11 @@
             </details>
         </main>
         <script type="module">
-            import { generateSecretKey, getPublicKey } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
+            import {
+              generateSecretKey,
+              getPublicKey,
+              nip19
+            } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
             import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
@@ -136,8 +163,8 @@
             keypairForm.addEventListener("submit", async (event) => {
                 const secretKeyDisplay = keypairForm["secret-key"].value;
                 const publicKeyDisplay = keypairForm["public-key"].value;
-                document.querySelector("#display-secret-key").innerHTML = secretKeyDisplay;
-                document.querySelector("#display-public-key").innerHTML = publicKeyDisplay;
+                document.querySelector("#display-secret-encryption-key").innerHTML = secretKeyDisplay;
+                document.querySelector("#display-public-encryption-key").innerHTML = publicKeyDisplay;
             })
             let newKeypairButton = document.querySelector("#new-keypair");
             newKeypairButton.addEventListener("click", async (event) => {
@@ -149,11 +176,11 @@
                 keypairForm["public-key"].value = bytesToHex(
                     identityKeypair.publicKey,
                 );
-                document.querySelector("#display-secret-key").innerHTML =
+                document.querySelector("#display-secret-encryption-key").innerHTML =
                     bytesToHex(
                         identityKeypair.secretKey,
                     );
-                document.querySelector("#display-public-key").innerHTML =
+                document.querySelector("#display-public-encryption-key").innerHTML =
                     bytesToHex(identityKeypair.publicKey);
             })
             let clearParticipantsButton = document.querySelector("#clear-participants");
@@ -162,20 +189,24 @@
             })
             let addParticipantForm = document.querySelector("#add-participant-form");
             addParticipantForm.addEventListener("submit", async (event) => {
-              const oldParticipants = document.querySelector("#participants").innerText
-              const newParticipant = addParticipantForm['public-key'].value.split(",");
+              const newParticipants = document.querySelector("#participants").innerText
+                .replace("<p>", " ")
+                .concat(" ")
+                .concat(addParticipantForm['public-key'].value)
+                .trim()
+
               addParticipantForm['public-key'].value = ""
-              const newParticipants = oldParticipants
-                .split(",")
-                .concat(newParticipant)
-                .filter(notEmpty => notEmpty !== '')
-                .join(',')
-              document.querySelector("#participants").innerHTML = newParticipants
+
+              const cleanNewParticipants = "<p>".concat(Array.from(new Set(newParticipants
+                .split(" ")
+                .filter(noEmpties => noEmpties !== "")))
+                .join("<p>"))
+              document.querySelector("#participants").innerHTML = cleanNewParticipants
             })
-            let clearRelaysButton = document.querySelector("#clear-relays");
-            clearRelaysButton.addEventListener("click", async (event) => {
-              document.querySelector("#relays").innerHTML = '';
-            })
+            document.querySelector("#clear-relays")
+              .addEventListener("click", async (event) => {
+                document.querySelector("#relays").innerHTML = '';
+              })
             let addRelayForm = document.querySelector("#add-relay-form");
             addRelayForm.addEventListener("submit", async (event) => {
               const oldRelays = document.querySelector("#relays").innerText
@@ -188,17 +219,26 @@
                 .join(',')
               document.querySelector("#relays").innerHTML = newRelays
             })
-            let newNostrKeyButton = document.querySelector("#new-nostr-key");
+
             let nostrKeypairForm = document.querySelector("#nostr-keypair-form");
-            newNostrKeyButton.addEventListener("click", async (event) => {
+            document.querySelector("#new-nostr-key").addEventListener("click", async (event) => {
               let nostrSecretKey = generateSecretKey()
-                nostrKeypairForm["nostr-secret-key"].value = bytesToHex(
-                    nostrSecretKey
-                );
-                document.querySelector("#display-nostr-secret-key").innerHTML =
-                  bytesToHex(
-                      nostrSecretKey
-                  )
+              nostrKeypairForm["nostr-secret-key"].value = nip19.nsecEncode(
+                  nostrSecretKey
+              );
+            })
+            nostrKeypairForm.addEventListener("submit", async (event) => {
+              const nsec = nostrKeypairForm['nostr-secret-key'].value
+              document.querySelector("#display-nostr-secret-key").innerHTML = nsec
+              let { type, data } = nip19.decode(nsec)
+              document.querySelector("#display-nostr-public-key").innerHTML = nip19.npubEncode(getPublicKey(data))
+            })
+1
+            let nostrRoomForm = document.querySelector("#nostr-roomid-form");
+
+            document.querySelector("#new-nostr-room").addEventListener("click", async (event) => {
+              document.querySelector("#display-nostr-room-id").innerHTML = nostrRoomForm["nostr-room-id"].value
+              nostrRoomForm["nostr-room-id"].value = ''
             })
         </script>
     </body>

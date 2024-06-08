@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>y-ndk demo - private chat</title>
+        <meta name="description" content="y-ndk demo - private chat room" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.classless.min.css"
+        />
+    </head>
+    <body>
+        <header>
+            <hgroup>
+                <h1>y-ndk demo - private chat</h1>
+                <p>CRDT based chat via nostr relays</p>
+            </hgroup>
+        </header>
+        <main>
+            <details>
+                <summary>
+                    <h2>settings</h2>
+                </summary>
+                <section id="keypair-section">
+                    <details>
+                        <summary>
+                            <h2>1. Encryption</h2>
+                            public key:
+                            <pre id="display-public-key"></pre>
+                        </summary>
+                        <button id="new-keypair">generate new key</button>
+                        <form id="keypair-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="secret-key"
+                                    type="text"
+                                    placeholder="Enter your secret key curve25519_sk hex"
+                                    autocomplete="secretkey"
+                                />
+                            </fieldset>
+                            <fieldset>
+                                <input
+                                    name="public-key"
+                                    type="text"
+                                    placeholder="Enter your public key curve25519_pk hex"
+                                    autocomplete="publickey"
+                                />
+                            </fieldset>
+                            <input type="submit" hidden></input>
+                        </form>
+                        secret key: <pre id="display-secret-key"></pre>
+                    </details>
+                </section>
+                <section id="participants-section">
+                    <details>
+                        <summary>
+                            <h2>2. Participants</h2>
+                            participants:
+                            <pre id="participants"></pre>
+                        </summary>
+                        <button id="clear-participants">clear</button>
+                        <form id="add-participant-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="public-key"
+                                    type="text"
+                                    placeholder="Enter participant public key"
+                                    autocomplete="pkey"
+                                />
+                                <input type="submit"  hidden/>
+                            </fieldset>
+                        </form>
+                    </details>
+                </section>
+                <section id="relays-section">
+                    <details>
+                        <summary>
+                            <h2>3. Nostr Relays</h2>
+                            relays:
+                            <pre id="relays"></pre>
+                        </summary>
+                        <button id="clear-relays">clear</button>
+                        <form id="add-relay-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="url"
+                                    type="text"
+                                    placeholder="Enter nostr relay"
+                                    autocomplete="relay"
+                                />
+                                <input type="submit"/>
+                            </fieldset>
+                        </form>
+                    </details>
+                </section>
+                <section id="nostr-keypair-section">
+                    <details>
+                        <summary>
+                            <h2>4. Nostr Key</h2>
+                            nostr room secret key: <pre id="display-nostr-secret-key"></pre>
+                        </summary>
+                        <button id="new-nostr-key">generate new key</button>
+                        <form id="nostr-keypair-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="nostr-secret-key"
+                                    type="text"
+                                    placeholder="Enter your nostr secret key"
+                                    autocomplete="nostr-secret-key"
+                                />
+                            </fieldset>
+                            <input type="submit" hidden></input>
+                        </form>
+                    </details>
+                </section>
+            </details>
+        </main>
+        <script type="module">
+            import { generateSecretKey, getPublicKey } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
+            import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
+            function bytesToHex(byteArray) {
+              return Array.prototype.map.call(byteArray, function(byte) {
+                return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+              }).join('');
+            }
+            function hexToBytes(hexString) {
+              var result = [];
+              for (var i = 0; i < hexString.length; i += 2) {
+                result.push(parseInt(hexString.substr(i, 2), 16));
+              }
+              return result;
+            }
+            let keypairForm = document.querySelector("#keypair-form");
+            keypairForm.addEventListener("submit", async (event) => {
+                const secretKeyDisplay = keypairForm["secret-key"].value;
+                const publicKeyDisplay = keypairForm["public-key"].value;
+                document.querySelector("#display-secret-key").innerHTML = secretKeyDisplay;
+                document.querySelector("#display-public-key").innerHTML = publicKeyDisplay;
+            })
+            let newKeypairButton = document.querySelector("#new-keypair");
+            newKeypairButton.addEventListener("click", async (event) => {
+                const keypair = chloride.crypto_box_keypair;
+                const identityKeypair = await keypair();
+                keypairForm["secret-key"].value = bytesToHex(
+                    identityKeypair.secretKey,
+                );
+                keypairForm["public-key"].value = bytesToHex(
+                    identityKeypair.publicKey,
+                );
+                document.querySelector("#display-secret-key").innerHTML =
+                    bytesToHex(
+                        identityKeypair.secretKey,
+                    );
+                document.querySelector("#display-public-key").innerHTML =
+                    bytesToHex(identityKeypair.publicKey);
+            })
+            let clearParticipantsButton = document.querySelector("#clear-participants");
+            clearParticipantsButton.addEventListener("click", async (event) => {
+              document.querySelector("#participants").innerHTML = '';
+            })
+            let addParticipantForm = document.querySelector("#add-participant-form");
+            addParticipantForm.addEventListener("submit", async (event) => {
+              const oldParticipants = document.querySelector("#participants").innerText
+              const newParticipant = addParticipantForm['public-key'].value.split(",");
+              addParticipantForm['public-key'].value = ""
+              const newParticipants = oldParticipants
+                .split(",")
+                .concat(newParticipant)
+                .filter(notEmpty => notEmpty !== '')
+                .join(',')
+              document.querySelector("#participants").innerHTML = newParticipants
+            })
+            let clearRelaysButton = document.querySelector("#clear-relays");
+            clearRelaysButton.addEventListener("click", async (event) => {
+              document.querySelector("#relays").innerHTML = '';
+            })
+            let addRelayForm = document.querySelector("#add-relay-form");
+            addRelayForm.addEventListener("submit", async (event) => {
+              const oldRelays = document.querySelector("#relays").innerText
+              const newRelay = addRelayForm['url'].value.split(",");
+              addRelayForm['url'].value = ""
+              const newRelays = oldRelays
+                .split(",")
+                .concat(newRelay)
+                .filter(notEmpty => notEmpty !== '')
+                .join(',')
+              document.querySelector("#relays").innerHTML = newRelays
+            })
+            let newNostrKeyButton = document.querySelector("#new-nostr-key");
+            let nostrKeypairForm = document.querySelector("#nostr-keypair-form");
+            newNostrKeyButton.addEventListener("click", async (event) => {
+              let nostrSecretKey = generateSecretKey()
+                nostrKeypairForm["nostr-secret-key"].value = bytesToHex(
+                    nostrSecretKey
+                );
+                document.querySelector("#display-nostr-secret-key").innerHTML =
+                  bytesToHex(
+                      nostrSecretKey
+                  )
+            })
+        </script>
+    </body>
+</html>

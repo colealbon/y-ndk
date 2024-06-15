@@ -17,6 +17,12 @@ export default [
         format: 'esm',
         name: 'yndk',
         sourcemap: true
+      },
+      {
+        file: 'chat/y-ndk.mjs',
+        format: 'esm',
+        name: 'yndk',
+        sourcemap: true
       }
     ],
     plugins: [commonjs(), esbuildResolve()]
@@ -29,6 +35,28 @@ export default [
         file: 'demo/bundle.mjs',
         format: 'esm',
         name: 'yndk',
+        sourcemap: true
+      }
+    ],
+    plugins: [
+      commonjs(),
+      esbuildResolve({
+        browser: true,
+        alias: {
+          yjs: 'yjs',
+          crypto: 'crypto-js'
+        }
+      })
+    ]
+  },
+  {
+    external: ['fs', 'path'],
+    input: 'chat/index.mjs',
+    output: [
+      {
+        file: 'chat/bundle.mjs',
+        format: 'esm',
+        name: 'chat',
         sourcemap: true
       }
     ],

@@ -5,3 +5,7 @@ pnpm-lock.yaml
 demo/y-ndk.*
 demo/bundle.mjs
 demo/bundle.mjs.map
+chat/y-ndk.*
+chat/bundle.mjs
+chat/bundle.mjs.map
+

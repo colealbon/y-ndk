@@ -80,7 +80,7 @@
                         <summary>
                             <h3>Nostr Relays</h3>
                             relays:
-                            <pre id="relays"></pre>
+                            <pre id="relays-display"></pre>
                         </summary>
                         <button id="clear-relays">clear</button>
                         <form id="add-relay-form" onsubmit="return false">
@@ -142,11 +142,18 @@
         </main>
         <script type="module">
             import {
+              NDK,
+              NDKPrivateKeySigner,
+              createNostrCRDTRoom
+            } from './bundle.mjs'
+            import * as yjs from 'https://cdn.jsdelivr.net/npm/yjs/+esm'
+            import {
               generateSecretKey,
               getPublicKey,
               nip19
             } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
             import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
+
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
                 return ('0' + (byte & 0xFF).toString(16)).slice(-2);
@@ -205,11 +212,11 @@
             })
             document.querySelector("#clear-relays")
               .addEventListener("click", async (event) => {
-                document.querySelector("#relays").innerHTML = '';
+                document.querySelector("#relays-display").innerHTML = '';
               })
             let addRelayForm = document.querySelector("#add-relay-form");
             addRelayForm.addEventListener("submit", async (event) => {
-              const oldRelays = document.querySelector("#relays").innerText
+              const oldRelays = document.querySelector("#relays-display").innerText
               const newRelay = addRelayForm['url'].value.split(",");
               addRelayForm['url'].value = ""
               const newRelays = oldRelays
@@ -217,11 +224,14 @@
                 .concat(newRelay)
                 .filter(notEmpty => notEmpty !== '')
                 .join(',')
-              document.querySelector("#relays").innerHTML = newRelays
+              document.querySelector("#relays-display").innerHTML = newRelays
             })
 
             let nostrKeypairForm = document.querySelector("#nostr-keypair-form");
             document.querySelector("#new-nostr-key").addEventListener("click", async (event) => {
+              if (nostrKeypairForm["nostr-secret-key"].value) {
+                return
+              }
               let nostrSecretKey = generateSecretKey()
               nostrKeypairForm["nostr-secret-key"].value = nip19.nsecEncode(
                   nostrSecretKey
@@ -233,12 +243,35 @@
               let { type, data } = nip19.decode(nsec)
               document.querySelector("#display-nostr-public-key").innerHTML = nip19.npubEncode(getPublicKey(data))
             })
-1
+
             let nostrRoomForm = document.querySelector("#nostr-roomid-form");
 
             document.querySelector("#new-nostr-room").addEventListener("click", async (event) => {
-              document.querySelector("#display-nostr-room-id").innerHTML = nostrRoomForm["nostr-room-id"].value
-              nostrRoomForm["nostr-room-id"].value = ''
+              if (nostrRoomForm["nostr-room-id"].value) {
+                return
+              }
+              const {
+                type,
+                data
+              } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              const secretNostrKey = bytesToHex(data)
+              const skSigner = new NDKPrivateKeySigner(secretNostrKey)
+              const relay = document.querySelector("#relays-display").innerText
+              const ndkOpts = {}
+              ndkOpts.signer = skSigner
+              ndkOpts.explicitRelayUrls = [ relay ]
+              ndkOpts.activeUser = skSigner.user()
+              const roomNdk = new NDK(ndkOpts)
+              await roomNdk.connect()
+              const ydoc = new yjs.Doc()
+              const initialLocalStateRoom = yjs.encodeStateAsUpdate(ydoc)
+              const nostrCRDTCreateEventId = await createNostrCRDTRoom(
+                  roomNdk,
+                  'testWebApp',
+                  initialLocalStateRoom,
+                  9001
+              )
+              document.querySelector("#display-nostr-room-id").innerText = nostrCRDTCreateEventId
             })
         </script>
     </body>

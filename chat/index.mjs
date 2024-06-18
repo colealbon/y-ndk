@@ -3,11 +3,13 @@ import NDK, {
 } from '@nostr-dev-kit/ndk'
 
 import {
-  createNostrCRDTRoom
+  createNostrCRDTRoom,
+  NostrProvider
 } from './y-ndk.mjs'
 
 export {
   NDK,
   NDKPrivateKeySigner,
-  createNostrCRDTRoom
+  createNostrCRDTRoom,
+  NostrProvider
 }

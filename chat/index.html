@@ -341,7 +341,6 @@
               const secretNostrKey = bytesToHex(data)
               const senderSigner = new NDKPrivateKeySigner(secretNostrKey)
               const senderPubkey = (await senderSigner.user()).pubkey
-              const senderYdoc = new yjs.Doc()
               const roomId = nostrRoomForm["nostr-room-id"].value
               const senderOpts = {}
               senderOpts.signer = senderSigner
@@ -351,7 +350,7 @@
               await senderNdk.connect()
               const nostrProvider = new NostrProvider(
                 yjs,
-                senderYdoc,
+                ydoc,
                 roomId,
                 senderNdk,
                 senderPubkey,
@@ -359,7 +358,7 @@
               )
               nostrProvider.initialize()
               const sharedContent = sharedContentForm["shared-content-textarea"].value
-              senderYdoc.getMap('testWebApp').set('contents', new yjs.Text(sharedContent))
+              ydoc.getMap('testWebApp').set('contents', new yjs.Text(sharedContent))
             })
         </script>
     </body>

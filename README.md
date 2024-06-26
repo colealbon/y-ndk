@@ -27,3 +27,7 @@ ndk-cli: [https://github.com/nostr-dev-kit/ndk-cli](https://github.com/nostr-dev
 y-webrtc: [https://github.com/yjs/y-webrtc](https://github.com/yjs/y-webrtc)  
 ssb-box: [https://github.com/ssbc/ssb-box](https://github.com/ssbc/ssb-box)  
 private-box: [https://github.com/auditdrivencrypto/private-box](https://github.com/auditdrivencrypto/private-box)  
+
+## the future
+we anticipate a client will pass in modern encrypt/decrypt functions - like whatever solidifies from this discussion:  
+MLS protocol: [https://github.com/nostr-protocol/nips/pull/1206#issuecomment-2180291416](https://github.com/nostr-protocol/nips/pull/1206#issuecomment-2180291416)

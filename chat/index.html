@@ -121,9 +121,8 @@
                     <details>
                         <summary>
                             <h3>Nostr Room</h3>
-                            nostr room event id: <pre id="display-nostr-room-id"></pre>
                         </summary>
-                        <form id="nostr-roomid-form" onsubmit="return false">
+                        <form id="nostr-room-form" onsubmit="return false">
                             <fieldset role="group">
                                 <input
                                     name="nostr-room-id"
@@ -240,7 +239,6 @@
                 .join(',')
               document.querySelector("#relays-display").innerHTML = newRelays
             })
-
             let nostrKeypairForm = document.querySelector("#nostr-keypair-form");
             nostrKeypairForm.addEventListener("submit", async (event) => {
               const nsec = nostrKeypairForm['nostr-secret-key'].value
@@ -248,7 +246,49 @@
               let { type, data } = nip19.decode(nsec)
               document.querySelector("#display-nostr-public-key").innerHTML = nip19.npubEncode(getPublicKey(data))
             })
-            let nostrRoomForm = document.querySelector("#nostr-roomid-form");
+            let nostrRoomForm = document.querySelector("#nostr-room-form");
+            nostrRoomForm.addEventListener("submit", async (event) => {
+              const roomId = nostrRoomForm["nostr-room-id"].value
+              const {
+                type,
+                data
+              } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              const secretNostrKey = bytesToHex(data)
+              const nostrSigner = new NDKPrivateKeySigner(secretNostrKey)
+              const nostrPubkey = (await nostrSigner.user()).pubkey
+              const ydoc = new yjs.Doc()
+              const ndkOpts = {}
+              ndkOpts.signer = nostrSigner
+              ndkOpts.activeUser = nostrSigner.user()
+              ndkOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
+              const ndk = new NDK(ndkOpts)
+              await ndk.connect()
+              const encrypt = (passthrough) => {
+                console.log('encrypt')
+                return passthrough
+              }
+              const decrypt = (passthrough) => {
+                return passthrough
+              }
+
+              const nostrProvider = new NostrProvider(
+                ydoc,
+                roomId,
+                ndk,
+                nostrPubkey,
+                9001,
+                encrypt,
+                decrypt
+              )
+              nostrProvider.initialize()
+
+              setTimeout(() => {
+                const theContent = ydoc.getMap('testWebApp').get('contents')?.toJSON()
+                sharedContentForm["shared-content-textarea"].value = theContent
+              }, 2000)
+
+              const ymap = ydoc.getMap('testWebApp')
+            })
             document.querySelector("#new-nostr-key").addEventListener("click", async (event) => {
               if (nostrKeypairForm["nostr-secret-key"].value) {
                 return
@@ -258,7 +298,6 @@
                   nostrSecretKey
               );
             })
-
             document.querySelector("#new-nostr-room").addEventListener("click", async (event) => {
               if (nostrRoomForm["nostr-room-id"].value) {
                 return
@@ -284,7 +323,7 @@
                   initialLocalStateRoom,
                   9001
               )
-              document.querySelector("#display-nostr-room-id").innerText = nostrCRDTCreateEventId
+              nostrRoomForm["nostr-room-id"].value = nostrCRDTCreateEventId
             })
             let sharedContentForm = document.querySelector("#shared-content-form");
             sharedContentForm.addEventListener("submit", async (async) => {
@@ -297,21 +336,19 @@
               const senderSigner = new NDKPrivateKeySigner(secretNostrKey)
               const senderPubkey = (await senderSigner.user()).pubkey
               const senderYdoc = new yjs.Doc()
-              const roomId = document.querySelector("#display-nostr-room-id").innerText
+              const roomId = nostrRoomForm["nostr-room-id"].value
               const senderOpts = {}
               senderOpts.signer = senderSigner
               senderOpts.activeUser = senderSigner.user()
               senderOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
               const senderNdk = new NDK(senderOpts)
               await senderNdk.connect()
-              const encrypt = (passthrough) => passthrough
               const nostrProvider = new NostrProvider(
                 senderYdoc,
                 roomId,
                 senderNdk,
                 senderPubkey,
-                9001,
-                encrypt
+                9001
               )
               nostrProvider.initialize()
               const sharedContent = sharedContentForm["shared-content-textarea"].value

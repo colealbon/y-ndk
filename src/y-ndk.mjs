@@ -105,7 +105,7 @@ export class NostrProvider extends ObservableV2 {
       return
     }
     this.sendPendingTimeout = setTimeout(() => {
-      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates), this.subscribers)
+      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates))
       this.pendingUpdates = []
     }, 100)
   }
@@ -154,7 +154,7 @@ export class NostrProvider extends ObservableV2 {
         // we don't catch this event here
         const update = this.updateFromEvents(initialEvents)
         yjs.applyUpdate(this.ydoc, update, this)
-        // this.emit('documentAvailable')
+        this.emit('documentAvailable')
         // Next, find if there are local changes that haven't been synced to the server
         const remoteStateVector = yjs.encodeStateVectorFromUpdate(update)
         const missingOnWire = yjs.diffUpdate(

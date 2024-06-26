@@ -53,6 +53,7 @@ export const demoRoundTripClearText = async (params) => {
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
   const nostrProviderAlice = new NostrProvider(
+    yjs,
     aliceYdoc,
     roomId,
     aliceNdk,
@@ -73,6 +74,7 @@ export const demoRoundTripClearText = async (params) => {
   await bobNdk.connect()
   const bobYdoc = new yjs.Doc()
   const nostrProviderBob = new NostrProvider(
+    yjs,
     bobYdoc,
     roomId,
     bobNdk,
@@ -105,6 +107,7 @@ export const demoMulticast = async (params) => {
   const senderNdk = new NDK(senderOpts)
   await senderNdk.connect()
   const nostrProviderPlayer1 = new NostrProvider(
+    yjs,
     senderYdoc,
     roomId,
     senderNdk,
@@ -125,6 +128,7 @@ export const demoMulticast = async (params) => {
   const player2Ndk = new NDK(player2Opts)
   await player2Ndk.connect()
   const nostrProviderPlayer2 = new NostrProvider(
+    yjs,
     player2Ydoc,
     roomId,
     player2Ndk,

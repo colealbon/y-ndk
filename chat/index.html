@@ -170,10 +170,10 @@
             const ydoc = new yjs.Doc()
             const ymap = ydoc.getMap('testWebApp')
             ymap.observe(event => {
-              setTimeout(() => {
                 const newContent = ymap.get('contents').toJSON()
+                console.log(newContent)
                 sharedContentForm["shared-content-textarea"].value = newContent
-              }, 200)
+
             })
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
@@ -280,6 +280,7 @@
               }
 
               const nostrProvider = new NostrProvider(
+                yjs,
                 ydoc,
                 roomId,
                 ndk,
@@ -349,6 +350,7 @@
               const senderNdk = new NDK(senderOpts)
               await senderNdk.connect()
               const nostrProvider = new NostrProvider(
+                yjs,
                 senderYdoc,
                 roomId,
                 senderNdk,

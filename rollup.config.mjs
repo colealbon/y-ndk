@@ -25,7 +25,10 @@ export default [
         sourcemap: true
       }
     ],
-    plugins: [commonjs(), esbuildResolve()]
+    plugins: [
+      commonjs(),
+      esbuildResolve()
+    ]
   },
   {
     external: ['fs', 'path'],
@@ -50,7 +53,7 @@ export default [
     ]
   },
   {
-    external: ['fs', 'path'],
+    external: ['yjs', 'fs', 'path'],
     input: 'chat/index.mjs',
     output: [
       {

@@ -56,6 +56,7 @@ export const testSyncMapPrivate = async tc => {
   )
 
   const nostrProviderAlice = new NostrProvider(
+    yjs,
     aliceYdoc,
     nostrRoomId,
     aliceNdk,
@@ -77,6 +78,7 @@ export const testSyncMapPrivate = async tc => {
   const bobYdoc = new yjs.Doc()
   const decryptForBob = input => box.multibox_open(input, bob.secretKey)
   const nostrProviderBob = new NostrProvider(
+    yjs,
     bobYdoc,
     nostrRoomId,
     bobNdk,

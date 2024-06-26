@@ -167,6 +167,14 @@
             } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
             import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
 
+            const ydoc = new yjs.Doc()
+            const ymap = ydoc.getMap('testWebApp')
+            ymap.observe(event => {
+              setTimeout(() => {
+                const newContent = ymap.get('contents').toJSON()
+                sharedContentForm["shared-content-textarea"].value = newContent
+              }, 200)
+            })
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
                 return ('0' + (byte & 0xFF).toString(16)).slice(-2);
@@ -247,6 +255,7 @@
               document.querySelector("#display-nostr-public-key").innerHTML = nip19.npubEncode(getPublicKey(data))
             })
             let nostrRoomForm = document.querySelector("#nostr-room-form");
+            let sharedContentForm = document.querySelector("#shared-content-form");
             nostrRoomForm.addEventListener("submit", async (event) => {
               const roomId = nostrRoomForm["nostr-room-id"].value
               const {
@@ -256,7 +265,6 @@
               const secretNostrKey = bytesToHex(data)
               const nostrSigner = new NDKPrivateKeySigner(secretNostrKey)
               const nostrPubkey = (await nostrSigner.user()).pubkey
-              const ydoc = new yjs.Doc()
               const ndkOpts = {}
               ndkOpts.signer = nostrSigner
               ndkOpts.activeUser = nostrSigner.user()
@@ -283,11 +291,9 @@
               nostrProvider.initialize()
 
               setTimeout(() => {
-                const theContent = ydoc.getMap('testWebApp').get('contents')?.toJSON()
-                sharedContentForm["shared-content-textarea"].value = theContent
-              }, 2000)
-
-              const ymap = ydoc.getMap('testWebApp')
+                const initialContent = ydoc.getMap('testWebApp').get('contents')?.toJSON()
+                sharedContentForm["shared-content-textarea"].value = initialContent
+              }, 1000)
             })
             document.querySelector("#new-nostr-key").addEventListener("click", async (event) => {
               if (nostrKeypairForm["nostr-secret-key"].value) {
@@ -315,7 +321,6 @@
               ndkOpts.activeUser = skSigner.user()
               const roomNdk = new NDK(ndkOpts)
               await roomNdk.connect()
-              const ydoc = new yjs.Doc()
               const initialLocalStateRoom = yjs.encodeStateAsUpdate(ydoc)
               const nostrCRDTCreateEventId = await createNostrCRDTRoom(
                   roomNdk,
@@ -325,7 +330,7 @@
               )
               nostrRoomForm["nostr-room-id"].value = nostrCRDTCreateEventId
             })
-            let sharedContentForm = document.querySelector("#shared-content-form");
+            
             sharedContentForm.addEventListener("submit", async (async) => {
               const newContent = sharedContentForm["shared-content-textarea"].value
               const {

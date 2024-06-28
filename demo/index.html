@@ -1,219 +1,402 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
-    <title>y-ndk demo</title>
-  </head>
-  <body>
-    <main class="container">
-      <form id="y-ndk-room" onsubmit="return false">
-        <fieldset>
-          <label>
-            Nostr Event Kind
-            <input
-              name="nostr-event-kind"
-            />
-          </label>
-          <label>
-            Nostr Relay
-            <input
-              name="nostr-relay"
-            />
-          </label>
-          <!-- run a nostr relay like nostr-rs-relay -->
-          <!-- RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay -->
-          <label>
-            Private Room Key
-            <input
-              name="private-nostr-room-key"
-            />
-          </label>
-        </fieldset>
-        <input
-          type="submit"
-          value="1. Create Nostr Room"
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>y-ndk demo - private chat</title>
+        <meta name="description" content="y-ndk demo - private chat room" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.classless.min.css"
         />
-      </form>
-      <form id="test-cleartext" onsubmit="return false">
-        <fieldset>
-          <label>
-            Nostr Room ID
-            <input
-              name="nostr-room-event-id"
-            />
-          </label>
-          <label>
-            simple message
-            <input
-              name="simple-message"
-            />
-          </label>
-        </fieldset>
-        <input
-          type="submit"
-          value="2. Round Trip ClearText"
-        />
-      </form>
+    </head>
+    <body>
+        <header>
+            <hgroup>
+                <h1>y-ndk demo - private chat</h1>
+                <p>CRDT based chat via nostr relays</p>
+            </hgroup>
+        </header>
+        <main>
+            <details open>
+                <summary>
+                    <h2>settings</h2>
+                </summary>
+                <section id="keypair-section">
+                    <details open>
+                        <summary>
+                            <h3>Sender</h3>
+                            public key:
+                            <pre id="display-sender-encryption-public-key"></pre>
+                            secret key:
+                            <pre id="display-sender-encryption-secret-key"></pre>
+                        </summary>
+                        <button id="new-keypair">generate new key</button>
+                        <form id="keypair-form" onsubmit="return false">
+                            <fieldset>
+                              <input
+                                  name="public-key"
+                                  type="text"
+                                  placeholder="Enter your public key curve25519_pk hex"
+                                  autocomplete="publickey"
+                              />
+                            </fieldset>
+                            <fieldset role="group">
+                                <input
+                                    name="secret-key"
+                                    type="text"
+                                    placeholder="Enter your secret key curve25519_sk hex"
+                                    autocomplete="secretkey"
+                                />
+                            </fieldset>
+                            <input type="submit" hidden></input>
+                        </form>
+                    </details>
+                </section>
+                <section id="receivers-section">
+                    <details open>
+                        <summary>
+                            <h3>Receivers</h3>
+                            receivers:
+                            <pre id="receivers"></pre>
+                        </summary>
+                        <button id="clear-receivers">clear</button>
+                        <form id="add-receiver-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="public-key"
+                                    type="text"
+                                    placeholder="receiver public key(s) curve25519_pk hex"
+                                    autocomplete="pkey"
+                                />
+                                <input type="submit"  hidden/>
+                            </fieldset>
+                        </form>
+                    </details>
+                </section>
+                <section id="relays-section">
+                    <details open>
+                        <summary>
+                            <h3>Nostr Relays</h3>
+                            relays:
+                            <pre id="relays-display"></pre>
+                        </summary>
+                        <button id="clear-relays">clear</button>
+                        <form id="add-relay-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="url"
+                                    type="text"
+                                    placeholder="Enter nostr relay"
+                                    autocomplete="relay"
+                                />
+                                <input type="submit" hidden/>
+                            </fieldset>
+                        </form>
+                    </details>
+                </section>
+                <section id="nostr-message-kind-section">
+                  <details>
+                      <summary>
+                          <h3>Nostr Message Kind</h3>
+                          nostr message kind:
+                          <pre id="nostr-message-kind-display">9001</pre>
+                      </summary>
+                      <form id="nostr-message-kind-form" onsubmit="return false">
+                          <fieldset role="group">
+                              <input
+                                  name="kind"
+                                  type="text"
+                              />
+                              <input type="submit" hidden/>
+                          </fieldset>
+                      </form>
+                  </details>
+              </section>
+                <section id="nostr-keypair-section">
+                    <details open>
+                        <summary>
+                            <h3>Nostr Key</h3>
+                            nostr room secret key: <pre id="display-nostr-secret-key"></pre>
+                            nostr room public key: <pre id="display-nostr-public-key"></pre>
+                        </summary>
+                        <form id="nostr-keypair-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="nostr-secret-key"
+                                    type="text"
+                                    placeholder="Enter your nostr secret key"
+                                    autocomplete="nostr-secret-key"
+                                />
+                                <button id="new-nostr-key">generate</button>
+                            </fieldset>
+                            <input type="submit" hidden></input>
+                        </form>
+                    </details>
+                </section>
+                <section id="nostr-roomid-section">
+                    <details open>
+                        <summary>
+                            <h3>Nostr Room</h3>
+                        </summary>
+                        <form id="nostr-room-form" onsubmit="return false">
+                            <fieldset role="group">
+                                <input
+                                    name="nostr-room-id"
+                                    type="text"
+                                    placeholder="Enter your nostr room id"
+                                    autocomplete="nostr-room-id"
+                                />
+                                <button id="new-nostr-room">generate</button>
+                            </fieldset>
+                            <input type="submit" hidden></input>
+                        </form>
+                    </details>
+                </section>
+            </details>
+            <details open>
+                <summary>
+                    <h2>Chat</h2>
+                </summary>
+                <section id="chat-section">
+                    <form id="shared-content-form" onsubmit="return false">
+                        <fieldset role="group">
+                            <textarea id="shared-content-textarea">
+                            </textarea>
+                        </fieldset>
+                        <input type="submit"></input>
+                    </form>
+                </section>
+            </details>
+        </main>
+        <script type="module">
+            import {
+              NDK,
+              NDKPrivateKeySigner,
+              createNostrCRDTRoom,
+              NostrProvider
+            } from './bundle.mjs'
+            import * as yjs from 'https://cdn.jsdelivr.net/npm/yjs/+esm'
+            import {
+              generateSecretKey,
+              getPublicKey,
+              nip19
+            } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
+            import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
+            import buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
+            import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+            // https://github.com/auditdrivencrypto/private-box
+                       
+            function bytesToHex(byteArray) {
+              return Array.prototype.map.call(byteArray, function(byte) {
+                return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+              }).join('');
+            }
+            function hexToBytes(hexString) {
+              var result = [];
+              for (var i = 0; i < hexString.length; i += 2) {
+                result.push(parseInt(hexString.substr(i, 2), 16));
+              }
+              return result;
+            }
 
-      <pre id="output"></pre>
-      
-      <div class="grid">
-        <div>
-          <label>
-            player 1
-            <form id="player-1" onsubmit="return false">
-              message:
-              <input
-                name="simple-message"
-              />
-              <input
-                type="submit"
-                value="3. round trip encrypted"
-              />
-            </form>
-          </label>
-        </div>
-        <div>
-          <label>
-            player 2
-            <form id="player-2" onsubmit="return false">
-              <input
-                name="simple-message"
-              />
-              <input
-                type="submit"
-                value="post"
-              />
-            </form>
-          </label>
-        </div>
-        <div>
-          <label>
-            player 3
-            <form id="player-3" onsubmit="return false">
-              <input
-                name="simple-message"
-              />
-              <input
-                type="submit"
-                value="post"
-              />
-            </form>
-          </label>
-        </div>
-        <div>
-          <label>
-            player 4
-            <form id="player-4" onsubmit="return false">
-              <input
-                name="simple-message"
-              />
-              <input
-                type="submit"
-                value="post"
-              />
-            </form>
-          </label>
-        </div>
-        <div>
-          <label>
-            player 5
-            <form id="player-5" onsubmit="return false">
-              <input
-                name="simple-message"
-              />
-              <input
-                type="submit"
-                value="post"
-              />
-            </form>
-          </label>
-        </div>
-      </div>
-    </main>
-    <script type='module'> 
-      import buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
-      import chloride from 'https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm'
-      import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+            let identityKeypair
+            const getSecretEncryptionKey = () => identityKeypair.secretKey
 
-      import {
-        magicTestKeys
-      } from './magic.mjs'
-      import {
-        demoRoundTripClearText,
-        demoCreateNostrRoom,
-        defaultNostrRoomPayload,
-        demoMulticast
-      } from './bundle.mjs'
+            const getReceiverPublicKeys = () => {
+              const receiversRaw = document.querySelector("#receivers").innerHTML
+              return receiversRaw.split('</p>')
+                .map(removeParagraphMark => removeParagraphMark.replace('<p>',''))
+                .filter(noEmpties => noEmpties !== '')
+                .map(receiverHex => new Uint8Array(hexToBytes(receiverHex)))
+            }
 
-      const participants = magicTestKeys.map((participant) => {
-        return { ...participant, ...chloride.crypto_box_keypair() }
-      })
+            const getNostrMessageKind = () => document.querySelector("#nostr-message-kind-display").innerHTML
 
-      let roomId = ''
-      let yNostrRoomForm = document.querySelector('#y-ndk-room')
-      let testClearTextForm = document.querySelector('#test-cleartext')
-      let player1Form = document.querySelector("#player-1")
-      player1Form['simple-message'].value = 'test message from player 1'
-      let player2Form = document.querySelector("#player-2")
-      let player3Form = document.querySelector("#player-3")
-      let player4Form = document.querySelector("#player-4")
-      let player5Form = document.querySelector("#player-5")
-      yNostrRoomForm['nostr-event-kind'].value = defaultNostrRoomPayload()['nostr-event-kind']
-      yNostrRoomForm['nostr-relay'].value = defaultNostrRoomPayload()['nostr-relay']
-      yNostrRoomForm['private-nostr-room-key'].value = defaultNostrRoomPayload()['private-nostr-room-key']
+            const encrypt = input => {
+              const receivers = getReceiverPublicKeys()
+              return privatebox.multibox(buffer.Buffer.from(input), getReceiverPublicKeys())
+            }
+            const decrypt = input => privatebox.multibox_open(input, getSecretEncryptionKey())
+            const ydoc = new yjs.Doc()
+            const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
+            const ymap = ydoc.getMap('testWebApp')
+            ymap.observe(event => {
+                const newContent = ymap.get('contents').toJSON()
+                sharedContentForm["shared-content-textarea"].value = newContent
 
-      // player1Form['player-1'].value = defaultNostrRoomPayload()['player-1']
-      // player2Form['player-2'].value = defaultNostrRoomPayload()['player-2']
-      // player3Form['player-3'].value = defaultNostrRoomPayload()['player-3']
-      // player4Form['player-4'].value = defaultNostrRoomPayload()['player-4']
-      // player5Form['player-5'].value = defaultNostrRoomPayload()['player-5']
+            })
+            let addReceiverForm = document.querySelector("#add-receiver-form");
 
-      document.querySelector('#output').innerText = JSON.stringify(defaultNostrRoomPayload(), null, 2)
-     
-      yNostrRoomForm.addEventListener('submit', async event => {
-        event.preventDefault()
-        const roomOpts = {}
-        roomOpts.nostrEventKind = yNostrRoomForm['nostr-event-kind'].value
-        roomOpts.relay = yNostrRoomForm['nostr-relay'].value
-        roomOpts.privateNostrRoomKey = yNostrRoomForm['private-nostr-room-key'].value
-        roomOpts.encryptToSubscribers = (passthrough => passthrough)
-        roomId = await demoCreateNostrRoom(roomOpts)
-        testClearTextForm['nostr-room-event-id'].value = roomId
-      })
-      testClearTextForm.addEventListener('submit', async event => {
-        event.preventDefault()
-        const relay = yNostrRoomForm['nostr-relay'].value
-        const roomId = testClearTextForm['nostr-room-event-id'].value
-        const output = await demoRoundTripClearText({
-          roomId: roomId,
-          relay: relay,
-          simpleMessage: testClearTextForm['simple-message'].value
-        })
-        document.querySelector('#output').innerText = `${JSON.stringify(output, null, 2)}`
-      })
-      player1Form.addEventListener('submit', async event => {
-        event.preventDefault()
-        const relay = yNostrRoomForm['nostr-relay'].value
-        const roomId = testClearTextForm['nostr-room-event-id'].value
-        const player1Value = player1Form['simple-message'].value
-        const sender = participants[0].secretKey
-        const recipients = participants.map(recipient => recipient.publicKey)
-        const encrypt = (input => privatebox.multibox(buffer.Buffer.from(input), recipients))
-        const decryptForPlayer2 = input => privatebox.multibox_open(input, participants[1].secretKey)
-        const output = await demoMulticast({
-          relay: relay,
-          roomId: roomId,
-          simpleMessage: player1Form['simple-message'].value,
-          senderPrivateNostrKey: participants[0].nostrPrivate,
-          encrypt: encrypt,
-          decrypt: decryptForPlayer2
-        })
-        player2Form['simple-message'].value = output
-      })
-    </script>
-  </body>
+            let keypairForm = document.querySelector("#keypair-form");
+            keypairForm.addEventListener("submit", async (event) => {
+                document.querySelector("#display-sender-encryption-secret-key").innerHTML = keypairForm["secret-key"].value;
+                document.querySelector("#display-sender-encryption-public-key").innerHTML = keypairForm["public-key"].value;
+                
+            })
+            let newKeypairButton = document.querySelector("#new-keypair");
+            newKeypairButton.addEventListener("click", async (event) => {
+                const keypair = chloride.crypto_box_keypair;
+                identityKeypair = await keypair();
+                keypairForm["secret-key"].value = identityKeypair.secretKey.toString('hex')
+                keypairForm["public-key"].value = identityKeypair.publicKey.toString('hex')
+                addReceiverForm['public-key'].value = identityKeypair.publicKey.toString('hex')
+                document.querySelector("#display-sender-encryption-secret-key").innerHTML = identityKeypair.secretKey.toString('hex')
+                document.querySelector("#display-sender-encryption-public-key").innerHTML =identityKeypair.publicKey.toString('hex')
+            })
+            let clearReceiversButton = document.querySelector("#clear-receivers");
+            clearReceiversButton.addEventListener("click", async (event) => {
+              document.querySelector("#receivers").innerHTML = '';
+            })
+            
+            addReceiverForm.addEventListener("submit", async (event) => {
+              const newReceivers = document.querySelector("#receivers").innerText
+                .replace("<p>", " ")
+                .concat(" ")
+                .concat(addReceiverForm['public-key'].value)
+                .trim()
+
+              addReceiverForm['public-key'].value = ""
+
+              const cleanNewReceivers = "<p>".concat(Array.from(new Set(newReceivers
+                .split(" ")
+                .filter(noEmpties => noEmpties !== "")))
+                .join("<p>"))
+              document.querySelector("#receivers").innerHTML = cleanNewReceivers
+            })
+            document.querySelector("#clear-relays")
+              .addEventListener("click", async (event) => {
+                document.querySelector("#relays-display").innerHTML = '';
+              })
+            let addRelayForm = document.querySelector("#add-relay-form");
+            addRelayForm.addEventListener("submit", async (event) => {
+              const oldRelays = document.querySelector("#relays-display").innerText
+              const newRelay = addRelayForm['url'].value.split(",");
+              addRelayForm['url'].value = ""
+              const newRelays = oldRelays
+                .split(",")
+                .concat(newRelay)
+                .filter(notEmpty => notEmpty !== '')
+                .join(',')
+              document.querySelector("#relays-display").innerHTML = newRelays
+            })
+            let nostrMessageKindForm = document.querySelector("#nostr-message-kind-form")
+            nostrMessageKindForm.addEventListener("submit", async (event) => {
+              document.querySelector("#nostr-message-kind-display").innerHTML = nostrMessageKindForm['kind'].value
+              nostrMessageKindForm['kind'].value = ""
+            })
+
+            let nostrKeypairForm = document.querySelector("#nostr-keypair-form");
+            nostrKeypairForm.addEventListener("submit", async (event) => {
+              const nsec = nostrKeypairForm['nostr-secret-key'].value
+              document.querySelector("#display-nostr-secret-key").innerHTML = nsec
+              let { type, data } = nip19.decode(nsec)
+              document.querySelector("#display-nostr-public-key").innerHTML = nip19.npubEncode(getPublicKey(data))
+            })
+            let nostrRoomForm = document.querySelector("#nostr-room-form");
+            let sharedContentForm = document.querySelector("#shared-content-form");
+            nostrRoomForm.addEventListener("submit", async (event) => {
+              const roomId = nostrRoomForm["nostr-room-id"].value
+              const {
+                type,
+                data
+              } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              const secretNostrKey = bytesToHex(data)
+              const nostrSigner = new NDKPrivateKeySigner(secretNostrKey)
+              const nostrPubkey = (await nostrSigner.user()).pubkey
+              const ndkOpts = {}
+              ndkOpts.signer = nostrSigner
+              ndkOpts.activeUser = nostrSigner.user()
+              ndkOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
+              const ndk = new NDK(ndkOpts)
+              const nostrMessageKind = getNostrMessageKind()
+              await ndk.connect()
+              const nostrProvider = new NostrProvider(
+                yjs,
+                ydoc,
+                roomId,
+                ndk,
+                nostrPubkey,
+                nostrMessageKind,
+                encrypt,
+                decrypt
+              )
+              nostrProvider.initialize()
+
+              setTimeout(() => {
+                const initialContent = ydoc.getMap('testWebApp').get('contents')?.toJSON()
+                sharedContentForm["shared-content-textarea"].value = initialContent
+              }, 1000)
+            })
+            document.querySelector("#new-nostr-key").addEventListener("click", async (event) => {
+              if (nostrKeypairForm["nostr-secret-key"].value) {
+                return
+              }
+              let nostrSecretKey = generateSecretKey()
+              nostrKeypairForm["nostr-secret-key"].value = nip19.nsecEncode(
+                  nostrSecretKey
+              );
+            })
+            document.querySelector("#new-nostr-room").addEventListener("click", async (event) => {
+              if (nostrRoomForm["nostr-room-id"].value) {
+                return
+              }
+              const {
+                type,
+                data
+              } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              const secretNostrKey = bytesToHex(data)
+              const skSigner = new NDKPrivateKeySigner(secretNostrKey)
+              const relay = document.querySelector("#relays-display").innerText
+              const ndkOpts = {}
+              ndkOpts.signer = skSigner
+              ndkOpts.explicitRelayUrls = [ relay ]
+              ndkOpts.activeUser = skSigner.user()
+              const roomNdk = new NDK(ndkOpts)
+              await roomNdk.connect()
+              const receivers = getReceiverPublicKeys()                
+              const encrypt = input => privatebox.multibox(new Uint8Array(input), receivers)
+              const nostrCRDTCreateEventId = await createNostrCRDTRoom(
+                  roomNdk,
+                  'testWebApp',
+                  initialLocalState,
+                  getNostrMessageKind(),
+                  encrypt
+              )
+              nostrRoomForm["nostr-room-id"].value = nostrCRDTCreateEventId
+            })
+            
+            sharedContentForm.addEventListener("submit", async (async) => {
+              const newContent = sharedContentForm["shared-content-textarea"].value
+              const {
+                type,
+                data
+              } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              const secretNostrKey = bytesToHex(data)
+              const senderSigner = new NDKPrivateKeySigner(secretNostrKey)
+              const senderPubkey = (await senderSigner.user()).pubkey
+              const roomId = nostrRoomForm["nostr-room-id"].value
+              const senderOpts = {}
+              senderOpts.signer = senderSigner
+              senderOpts.activeUser = senderSigner.user()
+              senderOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
+              const senderNdk = new NDK(senderOpts)
+              await senderNdk.connect()
+              const nostrProvider = new NostrProvider(
+                yjs,
+                ydoc,
+                roomId,
+                senderNdk,
+                senderPubkey,
+                getNostrMessageKind(),
+                encrypt,
+                decrypt
+              )
+              nostrProvider.initialize()
+              const sharedContent = sharedContentForm["shared-content-textarea"].value
+              ydoc.getMap('testWebApp').set('contents', new yjs.Text(sharedContent))
+            })
+        </script>
+    </body>
 </html>

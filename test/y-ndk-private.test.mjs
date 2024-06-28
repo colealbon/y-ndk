@@ -31,7 +31,7 @@ export const testSyncMapPrivate = async tc => {
   const alice = await keypair()
   const bob = await keypair()
   // keypair for encrypt/decrypt not tied to keys to sign nostr posts
-  const subscribers = [alice, bob].map(subscriber => subscriber.publicKey)
+  const receivers = [alice, bob].map(receiver => receiver.publicKey)
   const aliceOpts = {}
   const aliceYdoc = new yjs.Doc()
   aliceOpts.explicitRelayUrls = TEST_NOSTR_RELAYS
@@ -44,7 +44,7 @@ export const testSyncMapPrivate = async tc => {
   await aliceNdk.connect()
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
 
-  const encryptToSubscribers = input => box.multibox(Buffer.from(input), subscribers)
+  const encryptToreceivers = input => box.multibox(new Uint8Array(input), receivers)
   const decryptForAlice = input => box.multibox_open(input, alice.secretKey)
 
   const nostrRoomId = await createNostrCRDTRoom(
@@ -52,7 +52,7 @@ export const testSyncMapPrivate = async tc => {
     'testSyncYjsMap',
     initialLocalStateAlice,
     YJS_UPDATE_EVENT_KIND,
-    encryptToSubscribers
+    encryptToreceivers
   )
 
   const nostrProviderAlice = new NostrProvider(
@@ -62,7 +62,7 @@ export const testSyncMapPrivate = async tc => {
     aliceNdk,
     alicePubkey,
     YJS_UPDATE_EVENT_KIND,
-    encryptToSubscribers,
+    encryptToreceivers,
     decryptForAlice
   )
   nostrProviderAlice.initialize()
@@ -84,7 +84,7 @@ export const testSyncMapPrivate = async tc => {
     bobNdk,
     bobPubkey,
     YJS_UPDATE_EVENT_KIND,
-    encryptToSubscribers,
+    encryptToreceivers,
     decryptForBob
   )
   nostrProviderBob.initialize()

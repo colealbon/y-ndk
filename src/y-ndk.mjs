@@ -67,7 +67,7 @@ export class NostrProvider extends ObservableV2 {
   updateFromEvents (events) {
     let updates = null
     updates = events.map((e) => {
-      return new Uint8Array(this.decrypt(fromBase64(e.content)))
+      return this.decrypt(fromBase64(e.content))
     })
     const update = this.yjs.mergeUpdates(updates)
     return update
@@ -153,9 +153,15 @@ export class NostrProvider extends ObservableV2 {
         const oldSnapshot = this.yjs.snapshot(this.ydoc)
         // This can fail because of no access to room. Because the room history should always be available,
         // we don't catch this event here
+        console.log(initialEvents)
         const update = this.updateFromEvents(initialEvents)
-        this.yjs.applyUpdate(this.ydoc, update, this)
-        this.emit('documentAvailable')
+        console.log(update)
+
+        if (initialEvents.length > 0) {
+          this.yjs.applyUpdate(this.ydoc, update, this)
+        }
+
+        // this.emit('documentAvailable') <-- this breaks stuff, don't know why, y-nkd seems to work without
         // Next, find if there are local changes that haven't been synced to the server
         const remoteStateVector = this.yjs.encodeStateVectorFromUpdate(update)
         const missingOnWire = this.yjs.diffUpdate(

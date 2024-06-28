@@ -153,10 +153,7 @@ export class NostrProvider extends ObservableV2 {
         const oldSnapshot = this.yjs.snapshot(this.ydoc)
         // This can fail because of no access to room. Because the room history should always be available,
         // we don't catch this event here
-        console.log(initialEvents)
         const update = this.updateFromEvents(initialEvents)
-        console.log(update)
-
         if (initialEvents.length > 0) {
           this.yjs.applyUpdate(this.ydoc, update, this)
         }

@@ -19,7 +19,7 @@
             </hgroup>
         </header>
         <main>
-            <details>
+            <details open>
                 <summary>
                     <h2>settings</h2>
                 </summary>
@@ -96,6 +96,24 @@
                         </form>
                     </details>
                 </section>
+                <section id="nostr-message-kind-section">
+                  <details>
+                      <summary>
+                          <h3>Nostr Message Kind</h3>
+                          nostr message kind:
+                          <pre id="nostr-message-kind-display">9001</pre>
+                      </summary>
+                      <form id="nostr-message-kind-form" onsubmit="return false">
+                          <fieldset role="group">
+                              <input
+                                  name="kind"
+                                  type="text"
+                              />
+                              <input type="submit" hidden/>
+                          </fieldset>
+                      </form>
+                  </details>
+              </section>
                 <section id="nostr-keypair-section">
                     <details open>
                         <summary>
@@ -194,13 +212,15 @@
                 .map(receiverHex => new Uint8Array(hexToBytes(receiverHex)))
             }
 
+            const getNostrMessageKind = () => document.querySelector("#nostr-message-kind-display").innerHTML
+
             const encrypt = input => {
               const receivers = getReceiverPublicKeys()
               return privatebox.multibox(buffer.Buffer.from(input), getReceiverPublicKeys())
             }
             const decrypt = input => privatebox.multibox_open(input, getSecretEncryptionKey())
             const ydoc = new yjs.Doc()
-            const initialLocalState = yjs.encodeStateAsUpdate(new yjs.Doc())
+            const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
             const ymap = ydoc.getMap('testWebApp')
             ymap.observe(event => {
                 const newContent = ymap.get('contents').toJSON()
@@ -261,6 +281,12 @@
                 .join(',')
               document.querySelector("#relays-display").innerHTML = newRelays
             })
+            let nostrMessageKindForm = document.querySelector("#nostr-message-kind-form")
+            nostrMessageKindForm.addEventListener("submit", async (event) => {
+              document.querySelector("#nostr-message-kind-display").innerHTML = nostrMessageKindForm['kind'].value
+              nostrMessageKindForm['kind'].value = ""
+            })
+
             let nostrKeypairForm = document.querySelector("#nostr-keypair-form");
             nostrKeypairForm.addEventListener("submit", async (event) => {
               const nsec = nostrKeypairForm['nostr-secret-key'].value
@@ -284,6 +310,7 @@
               ndkOpts.activeUser = nostrSigner.user()
               ndkOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
               const ndk = new NDK(ndkOpts)
+              const nostrMessageKind = getNostrMessageKind()
               await ndk.connect()
               const nostrProvider = new NostrProvider(
                 yjs,
@@ -291,7 +318,7 @@
                 roomId,
                 ndk,
                 nostrPubkey,
-                9001,
+                nostrMessageKind,
                 encrypt,
                 decrypt
               )
@@ -329,14 +356,12 @@
               const roomNdk = new NDK(ndkOpts)
               await roomNdk.connect()
               const receivers = getReceiverPublicKeys()                
-              console.log(receivers)
               const encrypt = input => privatebox.multibox(new Uint8Array(input), receivers)
-
               const nostrCRDTCreateEventId = await createNostrCRDTRoom(
                   roomNdk,
                   'testWebApp',
                   initialLocalState,
-                  9001,
+                  getNostrMessageKind(),
                   encrypt
               )
               nostrRoomForm["nostr-room-id"].value = nostrCRDTCreateEventId
@@ -364,7 +389,7 @@
                 roomId,
                 senderNdk,
                 senderPubkey,
-                9001,
+                getNostrMessageKind(),
                 encrypt,
                 decrypt
               )

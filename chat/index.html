@@ -24,16 +24,24 @@
                     <h2>settings</h2>
                 </summary>
                 <section id="keypair-section">
-                    <details>
+                    <details open>
                         <summary>
-                            <h3>Encryption</h3>
+                            <h3>Sender</h3>
                             public key:
-                            <pre id="display-public-encryption-key"></pre>
+                            <pre id="display-sender-encryption-public-key"></pre>
                             secret key:
-                            <pre id="display-secret-encryption-key"></pre>
+                            <pre id="display-sender-encryption-secret-key"></pre>
                         </summary>
                         <button id="new-keypair">generate new key</button>
                         <form id="keypair-form" onsubmit="return false">
+                            <fieldset>
+                              <input
+                                  name="public-key"
+                                  type="text"
+                                  placeholder="Enter your public key curve25519_pk hex"
+                                  autocomplete="publickey"
+                              />
+                            </fieldset>
                             <fieldset role="group">
                                 <input
                                     name="secret-key"
@@ -42,32 +50,24 @@
                                     autocomplete="secretkey"
                                 />
                             </fieldset>
-                            <fieldset>
-                                <input
-                                    name="public-key"
-                                    type="text"
-                                    placeholder="Enter your public key curve25519_pk hex"
-                                    autocomplete="publickey"
-                                />
-                            </fieldset>
                             <input type="submit" hidden></input>
                         </form>
                     </details>
                 </section>
-                <section id="participants-section">
-                    <details>
+                <section id="receivers-section">
+                    <details open>
                         <summary>
-                            <h3>Participants</h3>
-                            participants:
-                            <pre id="participants"></pre>
+                            <h3>Receivers</h3>
+                            receivers:
+                            <pre id="receivers"></pre>
                         </summary>
-                        <button id="clear-participants">clear</button>
-                        <form id="add-participant-form" onsubmit="return false">
+                        <button id="clear-receivers">clear</button>
+                        <form id="add-receiver-form" onsubmit="return false">
                             <fieldset role="group">
                                 <input
                                     name="public-key"
                                     type="text"
-                                    placeholder="Enter participant public key curve25519_pk hex"
+                                    placeholder="receiver public key(s) curve25519_pk hex"
                                     autocomplete="pkey"
                                 />
                                 <input type="submit"  hidden/>
@@ -76,7 +76,7 @@
                     </details>
                 </section>
                 <section id="relays-section">
-                    <details>
+                    <details open>
                         <summary>
                             <h3>Nostr Relays</h3>
                             relays:
@@ -97,7 +97,7 @@
                     </details>
                 </section>
                 <section id="nostr-keypair-section">
-                    <details>
+                    <details open>
                         <summary>
                             <h3>Nostr Key</h3>
                             nostr room secret key: <pre id="display-nostr-secret-key"></pre>
@@ -118,7 +118,7 @@
                     </details>
                 </section>
                 <section id="nostr-roomid-section">
-                    <details>
+                    <details open>
                         <summary>
                             <h3>Nostr Room</h3>
                         </summary>
@@ -137,7 +137,7 @@
                     </details>
                 </section>
             </details>
-            <details>
+            <details open>
                 <summary>
                     <h2>Chat</h2>
                 </summary>
@@ -166,15 +166,10 @@
               nip19
             } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
             import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
-
-            const ydoc = new yjs.Doc()
-            const ymap = ydoc.getMap('testWebApp')
-            ymap.observe(event => {
-                const newContent = ymap.get('contents').toJSON()
-                console.log(newContent)
-                sharedContentForm["shared-content-textarea"].value = newContent
-
-            })
+            import buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
+            import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+            // https://github.com/auditdrivencrypto/private-box
+                       
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
                 return ('0' + (byte & 0xFF).toString(16)).slice(-2);
@@ -187,49 +182,68 @@
               }
               return result;
             }
+
+            let identityKeypair
+            const getSecretEncryptionKey = () => identityKeypair.secretKey
+
+            const getReceiverPublicKeys = () => {
+              const receiversRaw = document.querySelector("#receivers").innerHTML
+              return receiversRaw.split('</p>')
+                .map(removeParagraphMark => removeParagraphMark.replace('<p>',''))
+                .filter(noEmpties => noEmpties !== '')
+                .map(receiverHex => new Uint8Array(hexToBytes(receiverHex)))
+            }
+
+            const encrypt = input => {
+              const receivers = getReceiverPublicKeys()
+              return privatebox.multibox(buffer.Buffer.from(input), getReceiverPublicKeys())
+            }
+            const decrypt = input => privatebox.multibox_open(input, getSecretEncryptionKey())
+            const ydoc = new yjs.Doc()
+            const initialLocalState = yjs.encodeStateAsUpdate(new yjs.Doc())
+            const ymap = ydoc.getMap('testWebApp')
+            ymap.observe(event => {
+                const newContent = ymap.get('contents').toJSON()
+                sharedContentForm["shared-content-textarea"].value = newContent
+
+            })
+            let addReceiverForm = document.querySelector("#add-receiver-form");
+
             let keypairForm = document.querySelector("#keypair-form");
             keypairForm.addEventListener("submit", async (event) => {
-                const secretKeyDisplay = keypairForm["secret-key"].value;
-                const publicKeyDisplay = keypairForm["public-key"].value;
-                document.querySelector("#display-secret-encryption-key").innerHTML = secretKeyDisplay;
-                document.querySelector("#display-public-encryption-key").innerHTML = publicKeyDisplay;
+                document.querySelector("#display-sender-encryption-secret-key").innerHTML = keypairForm["secret-key"].value;
+                document.querySelector("#display-sender-encryption-public-key").innerHTML = keypairForm["public-key"].value;
+                
             })
             let newKeypairButton = document.querySelector("#new-keypair");
             newKeypairButton.addEventListener("click", async (event) => {
                 const keypair = chloride.crypto_box_keypair;
-                const identityKeypair = await keypair();
-                keypairForm["secret-key"].value = bytesToHex(
-                    identityKeypair.secretKey,
-                );
-                keypairForm["public-key"].value = bytesToHex(
-                    identityKeypair.publicKey,
-                );
-                document.querySelector("#display-secret-encryption-key").innerHTML =
-                    bytesToHex(
-                        identityKeypair.secretKey,
-                    );
-                document.querySelector("#display-public-encryption-key").innerHTML =
-                    bytesToHex(identityKeypair.publicKey);
+                identityKeypair = await keypair();
+                keypairForm["secret-key"].value = identityKeypair.secretKey.toString('hex')
+                keypairForm["public-key"].value = identityKeypair.publicKey.toString('hex')
+                addReceiverForm['public-key'].value = identityKeypair.publicKey.toString('hex')
+                document.querySelector("#display-sender-encryption-secret-key").innerHTML = identityKeypair.secretKey.toString('hex')
+                document.querySelector("#display-sender-encryption-public-key").innerHTML =identityKeypair.publicKey.toString('hex')
             })
-            let clearParticipantsButton = document.querySelector("#clear-participants");
-            clearParticipantsButton.addEventListener("click", async (event) => {
-              document.querySelector("#participants").innerHTML = '';
+            let clearReceiversButton = document.querySelector("#clear-receivers");
+            clearReceiversButton.addEventListener("click", async (event) => {
+              document.querySelector("#receivers").innerHTML = '';
             })
-            let addParticipantForm = document.querySelector("#add-participant-form");
-            addParticipantForm.addEventListener("submit", async (event) => {
-              const newParticipants = document.querySelector("#participants").innerText
+            
+            addReceiverForm.addEventListener("submit", async (event) => {
+              const newReceivers = document.querySelector("#receivers").innerText
                 .replace("<p>", " ")
                 .concat(" ")
-                .concat(addParticipantForm['public-key'].value)
+                .concat(addReceiverForm['public-key'].value)
                 .trim()
 
-              addParticipantForm['public-key'].value = ""
+              addReceiverForm['public-key'].value = ""
 
-              const cleanNewParticipants = "<p>".concat(Array.from(new Set(newParticipants
+              const cleanNewReceivers = "<p>".concat(Array.from(new Set(newReceivers
                 .split(" ")
                 .filter(noEmpties => noEmpties !== "")))
                 .join("<p>"))
-              document.querySelector("#participants").innerHTML = cleanNewParticipants
+              document.querySelector("#receivers").innerHTML = cleanNewReceivers
             })
             document.querySelector("#clear-relays")
               .addEventListener("click", async (event) => {
@@ -271,14 +285,6 @@
               ndkOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
               const ndk = new NDK(ndkOpts)
               await ndk.connect()
-              const encrypt = (passthrough) => {
-                console.log('encrypt')
-                return passthrough
-              }
-              const decrypt = (passthrough) => {
-                return passthrough
-              }
-
               const nostrProvider = new NostrProvider(
                 yjs,
                 ydoc,
@@ -322,12 +328,16 @@
               ndkOpts.activeUser = skSigner.user()
               const roomNdk = new NDK(ndkOpts)
               await roomNdk.connect()
-              const initialLocalStateRoom = yjs.encodeStateAsUpdate(ydoc)
+              const receivers = getReceiverPublicKeys()                
+              console.log(receivers)
+              const encrypt = input => privatebox.multibox(new Uint8Array(input), receivers)
+
               const nostrCRDTCreateEventId = await createNostrCRDTRoom(
                   roomNdk,
                   'testWebApp',
-                  initialLocalStateRoom,
-                  9001
+                  initialLocalState,
+                  9001,
+                  encrypt
               )
               nostrRoomForm["nostr-room-id"].value = nostrCRDTCreateEventId
             })
@@ -354,7 +364,9 @@
                 roomId,
                 senderNdk,
                 senderPubkey,
-                9001
+                9001,
+                encrypt,
+                decrypt
               )
               nostrProvider.initialize()
               const sharedContent = sharedContentForm["shared-content-textarea"].value

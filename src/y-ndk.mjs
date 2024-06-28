@@ -3,7 +3,6 @@ import {
   toBase64,
   fromBase64
 } from 'lib0/buffer'
-import * as yjs from 'yjs'
 import {
   NDKEvent
 } from '@nostr-dev-kit/ndk'
@@ -44,6 +43,7 @@ export const hello = () => console.log('hello from y-ndk.js')
 
 export class NostrProvider extends ObservableV2 {
   constructor (
+    yjs,
     ydoc,
     nostrRoomCreateEventId,
     ndk,
@@ -53,6 +53,7 @@ export class NostrProvider extends ObservableV2 {
     decrypt = (passthrough) => passthrough
   ) {
     super()
+    this.yjs = yjs
     this.ydoc = ydoc
     this.ndk = ndk
     this.nostrRoomCreateEventId = nostrRoomCreateEventId
@@ -66,9 +67,9 @@ export class NostrProvider extends ObservableV2 {
   updateFromEvents (events) {
     let updates = null
     updates = events.map((e) => {
-      return new Uint8Array(this.decrypt(fromBase64(e.content)))
+      return this.decrypt(fromBase64(e.content))
     })
-    const update = yjs.mergeUpdates(updates)
+    const update = this.yjs.mergeUpdates(updates)
     return update
   }
 
@@ -105,7 +106,7 @@ export class NostrProvider extends ObservableV2 {
       return
     }
     this.sendPendingTimeout = setTimeout(() => {
-      this.publishUpdate(yjs.mergeUpdates(this.pendingUpdates), this.subscribers)
+      this.publishUpdate(this.yjs.mergeUpdates(this.pendingUpdates))
       this.pendingUpdates = []
     }, 100)
   }
@@ -115,7 +116,7 @@ export class NostrProvider extends ObservableV2 {
   */
   processIncomingEvents = (events) => {
     const update = this.updateFromEvents(events)
-    yjs.applyUpdate(this.ydoc, update, this)
+    this.yjs.applyUpdate(this.ydoc, update, this)
   }
 
   async initialize () {
@@ -143,21 +144,24 @@ export class NostrProvider extends ObservableV2 {
       })
       sub.on('eose', () => {
         eoseSeen = true
-        const initialLocalState = yjs.encodeStateAsUpdate(this.ydoc)
-        const initialLocalStateVector = yjs.encodeStateVectorFromUpdate(initialLocalState)
-        const deleteSetOnlyUpdate = yjs.diffUpdate(
+        const initialLocalState = this.yjs.encodeStateAsUpdate(this.ydoc)
+        const initialLocalStateVector = this.yjs.encodeStateVectorFromUpdate(initialLocalState)
+        const deleteSetOnlyUpdate = this.yjs.diffUpdate(
           initialLocalState,
           initialLocalStateVector
         )
-        const oldSnapshot = yjs.snapshot(this.ydoc)
+        const oldSnapshot = this.yjs.snapshot(this.ydoc)
         // This can fail because of no access to room. Because the room history should always be available,
         // we don't catch this event here
         const update = this.updateFromEvents(initialEvents)
-        yjs.applyUpdate(this.ydoc, update, this)
-        // this.emit('documentAvailable')
+        if (initialEvents.length > 0) {
+          this.yjs.applyUpdate(this.ydoc, update, this)
+        }
+
+        // this.emit('documentAvailable') <-- this breaks stuff, don't know why, y-nkd seems to work without
         // Next, find if there are local changes that haven't been synced to the server
-        const remoteStateVector = yjs.encodeStateVectorFromUpdate(update)
-        const missingOnWire = yjs.diffUpdate(
+        const remoteStateVector = this.yjs.encodeStateVectorFromUpdate(update)
+        const missingOnWire = this.yjs.diffUpdate(
           initialLocalState,
           remoteStateVector
         )
@@ -172,9 +176,9 @@ export class NostrProvider extends ObservableV2 {
           )
         ) {
           // TODO: instead of next 3 lines, we can probably get deleteSet directly from 'update'
-          const serverDoc = new yjs.Doc()
-          yjs.applyUpdate(serverDoc, update)
-          const serverSnapshot = yjs.snapshot(serverDoc)
+          const serverDoc = new this.yjs.Doc()
+          this.yjs.applyUpdate(serverDoc, update)
+          const serverSnapshot = this.yjs.snapshot(serverDoc)
           // TODO: could also compare whether snapshot equal? instead of snapshotContainsAllDeletes?
           if (snapshotContainsAllDeletes(serverSnapshot, oldSnapshot)) {
             // missingOnWire only contains a deleteSet with items that are already in the deleteSet on server

@@ -77,6 +77,7 @@ export const testSyncMap = async tc => {
   )
 
   const nostrProviderAlice = new NostrProvider(
+    yjs,
     aliceYdoc,
     nostrRoomId,
     aliceNdk,
@@ -96,6 +97,7 @@ export const testSyncMap = async tc => {
   await bobNdk.connect()
   const bobYdoc = new yjs.Doc()
   const nostrProviderBob = new NostrProvider(
+    yjs,
     bobYdoc,
     nostrRoomId,
     bobNdk,

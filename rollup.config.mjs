@@ -17,18 +17,27 @@ export default [
         format: 'esm',
         name: 'yndk',
         sourcemap: true
+      },
+      {
+        file: 'chat/y-ndk.mjs',
+        format: 'esm',
+        name: 'yndk',
+        sourcemap: true
       }
     ],
-    plugins: [commonjs(), esbuildResolve()]
+    plugins: [
+      commonjs(),
+      esbuildResolve()
+    ]
   },
   {
-    external: ['fs', 'path'],
-    input: 'demo/demo.mjs',
+    external: ['yjs', 'fs', 'path'],
+    input: 'demo/index.mjs',
     output: [
       {
         file: 'demo/bundle.mjs',
         format: 'esm',
-        name: 'yndk',
+        name: 'demo',
         sourcemap: true
       }
     ],

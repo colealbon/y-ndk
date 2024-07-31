@@ -2,7 +2,7 @@
   "name": "y-ndk",
   "version": "0.0.0",
   "description": "yjs crdt state synchronizors over nostr relays",
-  "main": "index.js",
+  "main": "./src/index.js",
   "scripts": {
     "build": "./node_modules/rollup/dist/bin/rollup -c --silent",
     "test": "standard --fix --ignore dist --ignore demo && node test/index.mjs"

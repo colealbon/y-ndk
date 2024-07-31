@@ -8,4 +8,5 @@ demo/bundle.mjs.map
 chat/y-ndk.*
 chat/bundle.mjs
 chat/bundle.mjs.map
-
+.DS_Store
+demo/.DS_Store

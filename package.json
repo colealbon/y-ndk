@@ -5,7 +5,7 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "default": "./src/y-ndk.js"
+      "default": "./src/y-ndk.mjs"
     }
   },
 

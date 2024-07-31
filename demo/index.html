@@ -212,7 +212,7 @@
                 .map(receiverHex => new Uint8Array(hexToBytes(receiverHex)))
             }
 
-            const getNostrMessageKind = () => document.querySelector("#nostr-message-kind-display").innerHTML
+            const getNostrMessageKind = () => parseInt(document.querySelector("#nostr-message-kind-display").innerHTML)
 
             const encrypt = input => {
               const receivers = getReceiverPublicKeys()

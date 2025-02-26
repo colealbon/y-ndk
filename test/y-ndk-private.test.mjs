@@ -16,8 +16,8 @@ import chloride from 'chloride'
 import box from 'private-box'
 
 global.WebSocket = WebSocket
-const nostrRelay = new NostrRelay(9003)
-const TEST_NOSTR_RELAYS = ['ws://localhost:9003']
+const nostrRelay = new NostrRelay(8888)
+const TEST_NOSTR_RELAYS = ['ws://localhost:8888']
 if (!nostrRelay) {
   console.log('no relay')
 }
@@ -42,6 +42,7 @@ export const testSyncMapPrivate = async tc => {
   aliceOpts.activeUser = aliceSigner.user()
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
+  await new Promise(resolve => setTimeout(resolve, 3000))
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
 
   const encryptToreceivers = input => box.multibox(new Uint8Array(input), receivers)
@@ -75,6 +76,7 @@ export const testSyncMapPrivate = async tc => {
   bobOpts.explicitRelayUrls = TEST_NOSTR_RELAYS
   const bobNdk = new NDK(bobOpts)
   await bobNdk.connect()
+  await new Promise(resolve => setTimeout(resolve, 3000))
   const bobYdoc = new yjs.Doc()
   const decryptForBob = input => box.multibox_open(input, bob.secretKey)
   const nostrProviderBob = new NostrProvider(
@@ -89,7 +91,7 @@ export const testSyncMapPrivate = async tc => {
   )
   nostrProviderBob.initialize()
   aliceYdoc.getMap('test').set('contents', new yjs.Text('hello'))
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await new Promise((resolve) => setTimeout(resolve, 3000))
   const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
   testing.compare(bobReceive, 'hello', 'objects are equal')
 }

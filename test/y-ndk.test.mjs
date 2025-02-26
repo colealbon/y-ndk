@@ -14,8 +14,8 @@ import {
 } from './magic.mjs'
 
 global.WebSocket = WebSocket
-const nostrRelay = new NostrRelay(9001)
-const TEST_NOSTR_RELAYS = ['ws://localhost:9001']
+const nostrRelay = new NostrRelay(8888)
+const TEST_NOSTR_RELAYS = ['ws://localhost:8888']
 if (!nostrRelay) {
   console.log('no relay')
 }
@@ -34,6 +34,7 @@ export const testCreateNostrRoom = async tc => {
   ndkOpts.activeUser = skSigner.user()
   const ndk = new NDK(ndkOpts)
   await ndk.connect()
+  // await new Promise(resolve => setTimeout(resolve, 5000))
   const ydoc = new yjs.Doc()
   const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
   const nostrCRDTCreateEventId = await createNostrCRDTRoom(
@@ -68,6 +69,7 @@ export const testSyncMap = async tc => {
   aliceOpts.activeUser = aliceSigner.user()
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
+  // await new Promise(resolve => setTimeout(resolve, 5000))
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
   const nostrRoomId = await createNostrCRDTRoom(
     aliceNdk,
@@ -95,6 +97,7 @@ export const testSyncMap = async tc => {
   bobOpts.explicitRelayUrls = TEST_NOSTR_RELAYS
   const bobNdk = new NDK(bobOpts)
   await bobNdk.connect()
+  // await new Promise(resolve => setTimeout(resolve, 5000))
   const bobYdoc = new yjs.Doc()
   const nostrProviderBob = new NostrProvider(
     yjs,

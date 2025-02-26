@@ -8,7 +8,8 @@ export class NostrRelay {
   wss
   subs = new Map()
   connections = new Set()
-  constructor (port = 8081, host = 'localhost') {
+  constructor (port = 8888, host = 'localhost') {
+    console.log('*******************************')
     this.wss = new WebSocketServer({ port, host })
     this.wss.on('connection', (ws) => {
       this.connections.add(ws)

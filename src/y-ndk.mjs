@@ -41,7 +41,7 @@ export async function createNostrCRDTRoom (
     if (secretNostrKey === undefined) {
       const event = new NDKEvent(ndk, {
         kind: YJS_UPDATE_EVENT_KIND,
-        tags: [[crdt, label]],
+        tags: [['crdt', label]],
         content: toBase64(encrypt(initialLocalState))
       })
       ndk.publish(event)
@@ -52,7 +52,7 @@ export async function createNostrCRDTRoom (
         const signedEvent = finalizeEvent({
           kind: YJS_UPDATE_EVENT_KIND,
           created_at: Math.floor(Date.now() / 1000),
-          tags: [[crdt, label]],
+          tags: [['crdt', label]],
           content: toBase64(encrypt(initialLocalState)),
           publicKey: theUser.pubkey
         }, secretNostrKey)

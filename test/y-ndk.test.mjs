@@ -37,12 +37,31 @@ export const testCreateNostrRoom = async tc => {
   await new Promise(resolve => setTimeout(resolve, 2000))
   const ydoc = new yjs.Doc()
   const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
+  // const nostrCRDTCreateEventId = await createNostrCRDTRoom(
+  //   ndk,
+  //   'TestCRDTLabel',
+  //   initialLocalState,
+  //   YJS_UPDATE_EVENT_KIND
+  // )
+
+  //   const nostrRoomEventId = await createNostrCRDTRoom(
+  //     ndk,
+  //     'crdttestroom',
+  //     YJS_UPDATE_EVENT_KIND,
+  //     7777,
+  //     PRIVATE_TEST_KEY,
+  //     TEST_NOSTR_RELAYS
+  //   )
+
   const nostrCRDTCreateEventId = await createNostrCRDTRoom(
     ndk,
-    'TestCRDTLabel',
+    'crdtroom',
     initialLocalState,
-    YJS_UPDATE_EVENT_KIND
+    7777,
+    PRIVATE_TEST_KEY,
+    TEST_NOSTR_RELAYS
   )
+
   const roomEvent = await new Promise((resolve) => {
     const sub = ndk.subscribe({
       id: nostrCRDTCreateEventId,
@@ -71,12 +90,22 @@ export const testSyncMap = async tc => {
   await aliceNdk.connect()
   // await new Promise(resolve => setTimeout(resolve, 5000))
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
+
   const nostrRoomId = await createNostrCRDTRoom(
     aliceNdk,
     'testSyncYjsMap',
     initialLocalStateAlice,
-    YJS_UPDATE_EVENT_KIND
+    YJS_UPDATE_EVENT_KIND,
+    alicePrivateKey,
+    TEST_NOSTR_RELAYS
   )
+
+  //   const nostrRoomId = await createNostrCRDTRoom(
+  //     aliceNdk,
+  //     'testSyncYjsMap',
+  //     initialLocalStateAlice,
+  //     YJS_UPDATE_EVENT_KIND
+  //   )
 
   const nostrProviderAlice = new NostrProvider(
     yjs,

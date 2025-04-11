@@ -14,8 +14,8 @@ import {
 } from './magic.mjs'
 
 global.WebSocket = WebSocket
-const nostrRelay = new NostrRelay(8888)
-const TEST_NOSTR_RELAYS = ['ws://localhost:8888']
+const nostrRelay = new NostrRelay(8080)
+const TEST_NOSTR_RELAYS = ['ws://0.0.0.0:8080']
 if (!nostrRelay) {
   console.log('no relay')
 }
@@ -34,7 +34,7 @@ export const testCreateNostrRoom = async tc => {
   ndkOpts.activeUser = skSigner.user()
   const ndk = new NDK(ndkOpts)
   await ndk.connect()
-  // await new Promise(resolve => setTimeout(resolve, 5000))
+  await new Promise(resolve => setTimeout(resolve, 2000))
   const ydoc = new yjs.Doc()
   const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
   const nostrCRDTCreateEventId = await createNostrCRDTRoom(
@@ -108,9 +108,8 @@ export const testSyncMap = async tc => {
     YJS_UPDATE_EVENT_KIND
   )
   nostrProviderBob.initialize()
-  aliceYdoc.getMap('test').set('contents', new yjs.Text('hello'))
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await aliceYdoc.getMap('test').set('contents', new yjs.Text('hello'))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
-  console.log(bobReceive)
-  testing.compare(bobReceive, 'hello', 'objects are equal')
+  await testing.compare(bobReceive, 'hello', 'objects are equal')
 }

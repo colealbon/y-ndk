@@ -10,16 +10,23 @@ import {
   arrayBuffersAreEqual,
   snapshotContainsAllDeletes
 } from './util.mjs'
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { SimplePool } from 'nostr-tools/pool'
+
+const pool = new SimplePool()
 
 export async function createNostrCRDTRoom (
   ndk,
   label,
   initialLocalState,
   YJS_UPDATE_EVENT_KIND,
+  secretNostrKey,
+  explicitRelayUrls,
   encrypt = (passthrough) => passthrough
 ) {
   // plagiarized from:
   // https://github.com/YousefED/nostr-crdt/blob/main/packages/nostr-crdt/src/createNostrCRDTRoom.ts
+
   return new Promise((resolve) => {
     const sub = ndk.subscribe({
       since: Math.floor(Date.now() / 1000) - 1,
@@ -30,12 +37,28 @@ export async function createNostrCRDTRoom (
     sub.on('event', (event) => {
       resolve(event.id)
     })
-    const ndkEvent = new NDKEvent(ndk)
-    ndkEvent.created_at = Math.floor(Date.now() / 1000)
-    ndkEvent.kind = YJS_UPDATE_EVENT_KIND
-    ndkEvent.content = toBase64(encrypt(initialLocalState))
-    ndkEvent.tags = [['crdt', label]]
-    ndk.publish(ndkEvent)
+
+    if (secretNostrKey === undefined) {
+      const event = new NDKEvent(ndk, {
+        kind: YJS_UPDATE_EVENT_KIND,
+        tags: [[crdt, label]],
+        content: toBase64(encrypt(initialLocalState))
+      })
+      ndk.publish(event)
+    }
+
+    if (secretNostrKey !== undefined) {
+      ndk.signer.user().then(theUser => {
+        const signedEvent = finalizeEvent({
+          kind: YJS_UPDATE_EVENT_KIND,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [[crdt, label]],
+          content: toBase64(encrypt(initialLocalState)),
+          publicKey: theUser.pubkey
+        }, secretNostrKey)
+        verifyEvent(signedEvent) && pool.publish(explicitRelayUrls, signedEvent)
+      })
+    }
   })
 }
 
@@ -81,7 +104,10 @@ export class NostrProvider extends ObservableV2 {
     ndkEvent.tags = [
       ['e', this.nostrRoomCreateEventId]
     ]
-    this.ndk.publish(ndkEvent)
+    ndkEvent.sig = ''
+    this.ndk.publish(ndkEvent).catch(error => {
+      console.log(error)
+    })
   }
 
   pendingUpdates = []

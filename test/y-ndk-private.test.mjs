@@ -42,6 +42,11 @@ export const testSyncMapPrivate = async tc => {
   aliceOpts.activeUser = aliceSigner.user()
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
+  function handlePublishingFailures (event, error) {
+    console.log(`Event ${event.id} failed to publish`, { publishedToRelays: error.publishedToRelays })
+  }
+  aliceNdk.on('event:publish-failed', handlePublishingFailures)
+
   await new Promise(resolve => setTimeout(resolve, 3000))
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
 
@@ -75,6 +80,7 @@ export const testSyncMapPrivate = async tc => {
   bobOpts.activeUser = bobSigner.user()
   bobOpts.explicitRelayUrls = TEST_NOSTR_RELAYS
   const bobNdk = new NDK(bobOpts)
+  bobNdk.on('event:publish-failed', handlePublishingFailures)
   await bobNdk.connect()
   await new Promise(resolve => setTimeout(resolve, 3000))
   const bobYdoc = new yjs.Doc()
@@ -91,7 +97,7 @@ export const testSyncMapPrivate = async tc => {
   )
   nostrProviderBob.initialize()
   aliceYdoc.getMap('test').set('contents', new yjs.Text('hello'))
-  await new Promise((resolve) => setTimeout(resolve, 3000))
+  await new Promise((resolve) => setTimeout(resolve, 300))
   const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
   testing.compare(bobReceive, 'hello', 'objects are equal')
 }

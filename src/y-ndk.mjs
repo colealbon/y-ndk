@@ -72,6 +72,8 @@ export class NostrProvider extends ObservableV2 {
     ndk,
     publicKey,
     YJS_UPDATE_EVENT_KIND,
+    secretNostrKey,
+    explicitRelayUrls,
     encrypt = (passthrough) => passthrough,
     decrypt = (passthrough) => passthrough
   ) {
@@ -83,6 +85,8 @@ export class NostrProvider extends ObservableV2 {
     this.ydoc.on('update', this.documentUpdateListener)
     this.publicKey = publicKey
     this.YJS_UPDATE_EVENT_KIND = YJS_UPDATE_EVENT_KIND
+    this.secretNostrKey = secretNostrKey
+    this.explicitRelayUrls = explicitRelayUrls
     this.encrypt = encrypt
     this.decrypt = decrypt
   }
@@ -90,7 +94,8 @@ export class NostrProvider extends ObservableV2 {
   updateFromEvents (events) {
     let updates = null
     updates = events.map((e) => {
-      return this.decrypt(fromBase64(e.content))
+      const decrypted = this.decrypt(fromBase64(e.content))
+      return decrypted
     })
     const update = this.yjs.mergeUpdates(updates)
     return update

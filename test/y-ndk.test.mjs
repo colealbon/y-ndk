@@ -8,17 +8,17 @@ import {
   NostrProvider,
   createNostrCRDTRoom
 } from '../src/y-ndk.mjs'
-import { NostrRelay } from './NostrRelay.mjs'
+// import { NostrRelay } from './NostrRelay.mjs'
 import {
   YJS_UPDATE_EVENT_KIND
 } from './magic.mjs'
 
 global.WebSocket = WebSocket
-const nostrRelay = new NostrRelay(8080)
-const TEST_NOSTR_RELAYS = ['ws://0.0.0.0:8080']
-if (!nostrRelay) {
-  console.log('no relay')
-}
+// const nostrRelay = new NostrRelay(8080)
+const TEST_NOSTR_RELAYS = ['ws://0.0.0.0:4444']
+// if (!nostrRelay) {
+//   console.log('no relay')
+// }
 
 // export const testAlwaysPass = async tc => {
 //   testing.compare(true, true, 'objects are equal')

@@ -8,21 +8,13 @@ import {
   NostrProvider,
   createNostrCRDTRoom
 } from '../src/y-ndk.mjs'
-// import { NostrRelay } from './NostrRelay.mjs'
+
 import {
   YJS_UPDATE_EVENT_KIND
 } from './magic.mjs'
 
 global.WebSocket = WebSocket
-// const nostrRelay = new NostrRelay(8080)
 const TEST_NOSTR_RELAYS = ['ws://0.0.0.0:4444']
-// if (!nostrRelay) {
-//   console.log('no relay')
-// }
-
-// export const testAlwaysPass = async tc => {
-//   testing.compare(true, true, 'objects are equal')
-// }
 
 export const testCreateNostrRoom = async tc => {
   const ndkOpts = {}
@@ -37,21 +29,6 @@ export const testCreateNostrRoom = async tc => {
   await new Promise(resolve => setTimeout(resolve, 2000))
   const ydoc = new yjs.Doc()
   const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
-  // const nostrCRDTCreateEventId = await createNostrCRDTRoom(
-  //   ndk,
-  //   'TestCRDTLabel',
-  //   initialLocalState,
-  //   YJS_UPDATE_EVENT_KIND
-  // )
-
-  //   const nostrRoomEventId = await createNostrCRDTRoom(
-  //     ndk,
-  //     'crdttestroom',
-  //     YJS_UPDATE_EVENT_KIND,
-  //     7777,
-  //     PRIVATE_TEST_KEY,
-  //     TEST_NOSTR_RELAYS
-  //   )
 
   const nostrCRDTCreateEventId = await createNostrCRDTRoom(
     ndk,
@@ -88,7 +65,7 @@ export const testSyncMap = async tc => {
   aliceOpts.activeUser = aliceSigner.user()
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
-  // await new Promise(resolve => setTimeout(resolve, 5000))
+
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
 
   const nostrRoomId = await createNostrCRDTRoom(
@@ -99,14 +76,6 @@ export const testSyncMap = async tc => {
     alicePrivateKey,
     TEST_NOSTR_RELAYS
   )
-
-  //   const nostrRoomId = await createNostrCRDTRoom(
-  //     aliceNdk,
-  //     'testSyncYjsMap',
-  //     initialLocalStateAlice,
-  //     YJS_UPDATE_EVENT_KIND
-  //   )
-
   const nostrProviderAlice = new NostrProvider(
     yjs,
     aliceYdoc,
@@ -117,7 +86,6 @@ export const testSyncMap = async tc => {
   )
   nostrProviderAlice.initialize()
   const bobPrivateKey = '8bcdee1f90629b662c6347cb580665a884f89bfa23e38bb352b9d1a23301c0ca'
-  // const bobPubkey = getPublicKey(bobPrivateKey)
   const bobSigner = new NDKPrivateKeySigner(bobPrivateKey)
   const bobPubkey = (await bobSigner.user()).pubkey
   const bobOpts = {}
@@ -126,7 +94,6 @@ export const testSyncMap = async tc => {
   bobOpts.explicitRelayUrls = TEST_NOSTR_RELAYS
   const bobNdk = new NDK(bobOpts)
   await bobNdk.connect()
-  // await new Promise(resolve => setTimeout(resolve, 5000))
   const bobYdoc = new yjs.Doc()
   const nostrProviderBob = new NostrProvider(
     yjs,

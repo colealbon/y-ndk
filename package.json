@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "./node_modules/rollup/dist/bin/rollup -c --silent",
-    "test": "standard --fix --ignore dist --ignore demo && node test/index.mjs"
+    "test": "node test/index.mjs"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.8",

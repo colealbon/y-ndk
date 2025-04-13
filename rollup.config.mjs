@@ -17,12 +17,6 @@ export default [
         format: 'esm',
         name: 'yndk',
         sourcemap: true
-      },
-      {
-        file: 'chat/y-ndk.mjs',
-        format: 'esm',
-        name: 'yndk',
-        sourcemap: true
       }
     ],
     plugins: [

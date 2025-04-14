@@ -214,25 +214,22 @@
 
             const getNostrMessageKind = () => parseInt(document.querySelector("#nostr-message-kind-display").innerHTML)
             const encrypt = input => {
-              return input
-              // const receivers = getReceiverPublicKeys()
-              // const encoder = new TextEncoder()
-              // return privatebox.encrypt(encoder.encode(input), getReceiverPublicKeys())
+              // return input
+              const receivers = getReceiverPublicKeys()
+              const encoder = new TextEncoder()
+              return privatebox.encrypt(encoder.encode(input), getReceiverPublicKeys())
             }
             const decrypt = input => {
-              return input
-              // const secretKeyHex = document.querySelector("#secret-key").innerHTML
-              // // const secretKey = new Uint8Array(hexToBytes(secretKeyHex))
-              // const theBuffer = privatebox.decrypt(input, secretKeyHex)
-              // console.log(theBuffer)
-              // const decoder = new TextDecoder()
-              // const decoded = decoder.decode(theBuffer)
-              // return decoded
+              // return input
+              const secretKeyHex = document.querySelector("#secret-key").innerHTML
+              // const secretKey = new Uint8Array(hexToBytes(secretKeyHex))
+              const theBuffer = privatebox.decrypt(input, secretKeyHex)
+              console.log(theBuffer)
+              const decoder = new TextDecoder()
+              const decoded = decoder.decode(theBuffer)
+              return decoded
             }
 
-
-
-              // input => privatebox.multibox_open(input, getSecretEncryptionKey())
             const ydoc = new yjs.Doc()
             const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
             const ymap = ydoc.getMap('testWebApp')
@@ -313,16 +310,7 @@
             nostrRoomForm.addEventListener("submit", async (event) => {
               console.log('nostrRoomFormSubmit')
               const roomId = nostrRoomForm["nostr-room-id"].value
-              // const {
-              //   type,
-              //   data
-              // } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
-              // const secretNostrKey = bytesToHex(data)
               const nsec = nostrKeypairForm['nostr-secret-key'].value
-              // document.querySelector("#display-nostr-secret-key").innerHTML = nsec
-              // let { type, data } = nip19.decode(nsec)
-
-
               const nostrSigner = new NDKPrivateKeySigner(nsec)
               const nostrPubkey = (await nostrSigner.user()).pubkey
               const ndkOpts = {}

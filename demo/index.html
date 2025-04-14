@@ -113,7 +113,7 @@
                           </fieldset>
                       </form>
                   </details>
-              </section>
+                </section>
                 <section id="nostr-keypair-section">
                     <details open>
                         <summary>
@@ -185,9 +185,6 @@
             } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
             import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
             import buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
-            import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
-            // https://github.com/auditdrivencrypto/private-box
-                       
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
                 return ('0' + (byte & 0xFF).toString(16)).slice(-2);
@@ -201,31 +198,47 @@
               return result;
             }
 
-            let identityKeypair
-            const getSecretEncryptionKey = () => identityKeypair.secretKey
+            // import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+            // // https://github.com/auditdrivencrypto/private-box
 
             const getReceiverPublicKeys = () => {
               const receiversRaw = document.querySelector("#receivers").innerHTML
               return receiversRaw.split('</p>')
                 .map(removeParagraphMark => removeParagraphMark.replace('<p>',''))
                 .filter(noEmpties => noEmpties !== '')
-                .map(receiverHex => new Uint8Array(hexToBytes(receiverHex)))
+                .map(receiverHex => {
+                  const encoder = new TextEncoder()
+                  return encoder.encode(hexToBytes(receiverHex))
+                })
             }
 
             const getNostrMessageKind = () => parseInt(document.querySelector("#nostr-message-kind-display").innerHTML)
-
             const encrypt = input => {
-              const receivers = getReceiverPublicKeys()
-              return privatebox.multibox(buffer.Buffer.from(input), getReceiverPublicKeys())
+              return input
+              // const receivers = getReceiverPublicKeys()
+              // const encoder = new TextEncoder()
+              // return privatebox.encrypt(encoder.encode(input), getReceiverPublicKeys())
             }
-            const decrypt = input => privatebox.multibox_open(input, getSecretEncryptionKey())
+            const decrypt = input => {
+              return input
+              // const secretKeyHex = document.querySelector("#secret-key").innerHTML
+              // // const secretKey = new Uint8Array(hexToBytes(secretKeyHex))
+              // const theBuffer = privatebox.decrypt(input, secretKeyHex)
+              // console.log(theBuffer)
+              // const decoder = new TextDecoder()
+              // const decoded = decoder.decode(theBuffer)
+              // return decoded
+            }
+
+
+
+              // input => privatebox.multibox_open(input, getSecretEncryptionKey())
             const ydoc = new yjs.Doc()
             const initialLocalState = yjs.encodeStateAsUpdate(ydoc)
             const ymap = ydoc.getMap('testWebApp')
             ymap.observe(event => {
                 const newContent = ymap.get('contents').toJSON()
                 sharedContentForm["shared-content-textarea"].value = newContent
-
             })
             let addReceiverForm = document.querySelector("#add-receiver-form");
 
@@ -233,23 +246,22 @@
             keypairForm.addEventListener("submit", async (event) => {
                 document.querySelector("#display-sender-encryption-secret-key").innerHTML = keypairForm["secret-key"].value;
                 document.querySelector("#display-sender-encryption-public-key").innerHTML = keypairForm["public-key"].value;
-                
             })
             let newKeypairButton = document.querySelector("#new-keypair");
             newKeypairButton.addEventListener("click", async (event) => {
                 const keypair = chloride.crypto_box_keypair;
-                identityKeypair = await keypair();
+                const identityKeypair = await keypair();
                 keypairForm["secret-key"].value = identityKeypair.secretKey.toString('hex')
                 keypairForm["public-key"].value = identityKeypair.publicKey.toString('hex')
                 addReceiverForm['public-key'].value = identityKeypair.publicKey.toString('hex')
                 document.querySelector("#display-sender-encryption-secret-key").innerHTML = identityKeypair.secretKey.toString('hex')
-                document.querySelector("#display-sender-encryption-public-key").innerHTML =identityKeypair.publicKey.toString('hex')
+                document.querySelector("#display-sender-encryption-public-key").innerHTML = identityKeypair.publicKey.toString('hex')
             })
             let clearReceiversButton = document.querySelector("#clear-receivers");
             clearReceiversButton.addEventListener("click", async (event) => {
               document.querySelector("#receivers").innerHTML = '';
             })
-            
+
             addReceiverForm.addEventListener("submit", async (event) => {
               const newReceivers = document.querySelector("#receivers").innerText
                 .replace("<p>", " ")
@@ -294,16 +306,24 @@
               let { type, data } = nip19.decode(nsec)
               document.querySelector("#display-nostr-public-key").innerHTML = nip19.npubEncode(getPublicKey(data))
             })
+
             let nostrRoomForm = document.querySelector("#nostr-room-form");
             let sharedContentForm = document.querySelector("#shared-content-form");
+
             nostrRoomForm.addEventListener("submit", async (event) => {
+              console.log('nostrRoomFormSubmit')
               const roomId = nostrRoomForm["nostr-room-id"].value
-              const {
-                type,
-                data
-              } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
-              const secretNostrKey = bytesToHex(data)
-              const nostrSigner = new NDKPrivateKeySigner(secretNostrKey)
+              // const {
+              //   type,
+              //   data
+              // } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              // const secretNostrKey = bytesToHex(data)
+              const nsec = nostrKeypairForm['nostr-secret-key'].value
+              // document.querySelector("#display-nostr-secret-key").innerHTML = nsec
+              // let { type, data } = nip19.decode(nsec)
+
+
+              const nostrSigner = new NDKPrivateKeySigner(nsec)
               const nostrPubkey = (await nostrSigner.user()).pubkey
               const ndkOpts = {}
               ndkOpts.signer = nostrSigner
@@ -330,6 +350,7 @@
               }, 1000)
             })
             document.querySelector("#new-nostr-key").addEventListener("click", async (event) => {
+
               if (nostrKeypairForm["nostr-secret-key"].value) {
                 return
               }
@@ -338,10 +359,8 @@
                   nostrSecretKey
               );
             })
+
             document.querySelector("#new-nostr-room").addEventListener("click", async (event) => {
-              if (nostrRoomForm["nostr-room-id"].value) {
-                return
-              }
               const {
                 type,
                 data
@@ -352,22 +371,57 @@
               const ndkOpts = {}
               ndkOpts.signer = skSigner
               ndkOpts.explicitRelayUrls = [ relay ]
-              ndkOpts.activeUser = skSigner.user()
               const roomNdk = new NDK(ndkOpts)
               await roomNdk.connect()
-              const receivers = getReceiverPublicKeys()                
-              const encrypt = input => privatebox.multibox(new Uint8Array(input), receivers)
-              const nostrCRDTCreateEventId = await createNostrCRDTRoom(
+              const receivers = getReceiverPublicKeys()
+              // const encryptToReceivers = input => {
+              //   const encoder = new TextEncoder()
+              //   const receivers = getReceiverPublicKeys()
+              //   console.log(receivers)
+              //   const encryptedInput = privatebox.encrypt(encoder.encode(input), receivers)
+              //   return encryptedInput
+              // }
+
+
+              if (nostrRoomForm["nostr-room-id"].value) {
+                const nostrRoomId = nostrRoomForm["nostr-room-id"].value
+                console.log(nostrRoomId)
+                const ydoc = new yjs.Doc()
+                const signerPubkey = (await skSigner.user()).pubkey
+                const nostrCrdtEventKind = getNostrMessageKind()
+                const nostrProvider = new NostrProvider(
+                  yjs,
+                  ydoc,
+                  nostrRoomId,
+                  roomNdk,
+                  signerPubkey,
+                  nostrCrdtEventKind
+                )
+                nostrProvider.initialize()
+
+
+                setTimeout(() => {
+                  const initialContent = ydoc.getMap('testWebApp').get('contents')?.toJSON()
+                  sharedContentForm["shared-content-textarea"].value = initialContent
+                }, 1000)
+
+
+                return
+              }
+              const nostrRoomId = await createNostrCRDTRoom(
                   roomNdk,
                   'testWebApp',
                   initialLocalState,
                   getNostrMessageKind(),
-                  encrypt
+                  secretNostrKey,
+                  [relay]
               )
-              nostrRoomForm["nostr-room-id"].value = nostrCRDTCreateEventId
+              nostrRoomForm["nostr-room-id"].value = nostrRoomId
+
             })
-            
+
             sharedContentForm.addEventListener("submit", async (async) => {
+              console.log('submit')
               const newContent = sharedContentForm["shared-content-textarea"].value
               const {
                 type,
@@ -389,9 +443,10 @@
                 roomId,
                 senderNdk,
                 senderPubkey,
-                getNostrMessageKind(),
-                encrypt,
-                decrypt
+                getNostrMessageKind()
+                //,
+                // encrypt,
+                // decrypt
               )
               nostrProvider.initialize()
               const sharedContent = sharedContentForm["shared-content-textarea"].value

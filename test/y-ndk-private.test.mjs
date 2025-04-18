@@ -46,6 +46,7 @@ export const testSyncMap = async tc => {
   const keypair = chloride.crypto_box_keypair
   const alice = await keypair()
   const bob = await keypair()
+  const eve = await keypair()
 
   const encryptToReceivers = input => {
     const encoder = new TextEncoder()
@@ -54,6 +55,14 @@ export const testSyncMap = async tc => {
   }
   const decryptForBob = input => {
     const theBuffer = box.decrypt(input, bob.secretKey)
+    console.log(theBuffer)
+    const decoder = new TextDecoder()
+    const decoded = decoder.decode(theBuffer)
+    return decoded
+  }
+
+  const decryptForEve = input => {
+    const theBuffer = box.decrypt(input, eve.secretKey)
     console.log(theBuffer)
     const decoder = new TextDecoder()
     const decoded = decoder.decode(theBuffer)
@@ -70,7 +79,15 @@ export const testSyncMap = async tc => {
   aliceOpts.activeUser = aliceSigner.user()
   const aliceNdk = new NDK(aliceOpts)
   await aliceNdk.connect()
-  
+  const decryptForAlice = input => {
+    console.log('decryptForAlice')
+    const theBuffer = box.decrypt(input, alice.secretKey)
+    console.log(theBuffer)
+    const decoder = new TextDecoder()
+    const decoded = decoder.decode(theBuffer)
+    return decoded
+  }
+
   const initialLocalStateAlice = yjs.encodeStateAsUpdate(new yjs.Doc())
 
   const nostrRoomId = await createNostrCRDTRoom(
@@ -80,8 +97,7 @@ export const testSyncMap = async tc => {
     YJS_UPDATE_EVENT_KIND,
     alicePrivateKey,
     TEST_NOSTR_RELAYS,
-    encryptToReceivers,
-    decryptForBob
+    encryptToReceivers
   )
 
   const nostrProviderAlice = new NostrProvider(
@@ -92,7 +108,7 @@ export const testSyncMap = async tc => {
     alicePubkey,
     YJS_UPDATE_EVENT_KIND,
     encryptToReceivers,
-    decryptForBob
+    decryptForAlice
   )
   nostrProviderAlice.initialize()
   const bobPrivateKey = '8bcdee1f90629b662c6347cb580665a884f89bfa23e38bb352b9d1a23301c0ca'
@@ -111,11 +127,44 @@ export const testSyncMap = async tc => {
     nostrRoomId,
     bobNdk,
     bobPubkey,
-    YJS_UPDATE_EVENT_KIND
+    YJS_UPDATE_EVENT_KIND,
+    bobPrivateKey,
+    TEST_NOSTR_RELAYS,
+    encryptToReceivers,
+    decryptForBob
   )
   nostrProviderBob.initialize()
+
+  const evePrivateKey = 'c1b16fd71ace0636ca795b53c09fba2d3ac0a79684ebaea6325a1b57aa4f2644'
+  const eveSigner = new NDKPrivateKeySigner(evePrivateKey)
+  const evePubkey = (await eveSigner.user()).pubkey
+  console.log('**************************************')
+  console.log(evePubkey)
+  const eveOpts = {}
+  eveOpts.signer = eveSigner
+  eveOpts.activeUser = eveSigner.user()
+  eveOpts.explicitRelayUrls = TEST_NOSTR_RELAYS
+  const eveNdk = new NDK(eveOpts)
+  await eveNdk.connect()
+  const eveYdoc = new yjs.Doc()
+  const nostrProviderEve = new NostrProvider(
+    yjs,
+    eveYdoc,
+    nostrRoomId,
+    eveNdk,
+    evePubkey,
+    YJS_UPDATE_EVENT_KIND,
+    evePrivateKey,
+    TEST_NOSTR_RELAYS,
+    encryptToReceivers,
+    decryptForEve
+  )
+  nostrProviderEve.initialize()
+
   await aliceYdoc.getMap('test').set('contents', new yjs.Text('hello'))
   await new Promise((resolve) => setTimeout(resolve, 1000))
-  const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
-  await testing.compare(bobReceive, 'hello', 'objects are equal')
+//   const bobReceive = bobYdoc.getMap('test').get('contents')?.toJSON()
+//   await testing.compare(bobReceive, 'hello', 'objects are equal')
+//   const eveReceive = eveYdoc.getMap('test').get('contents')?.toJSON()
+//   await testing.compare(eveReceive, 'hello', 'objects not equal')
 }

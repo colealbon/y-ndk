@@ -16,16 +16,22 @@ import { SimplePool } from 'nostr-tools/pool'
 const pool = new SimplePool()
 
 export async function createNostrCRDTRoom (
-  ndk,
-  label,
-  initialLocalState,
-  YJS_UPDATE_EVENT_KIND,
-  secretNostrKey,
-  explicitRelayUrls,
-  encrypt = (passthrough) => passthrough
+  params
 ) {
   // plagiarized from:
   // https://github.com/YousefED/nostr-crdt/blob/main/packages/nostr-crdt/src/createNostrCRDTRoom.ts
+  const {
+    ndk,
+    label,
+    initialLocalState,
+    YJS_UPDATE_EVENT_KIND,
+    secretNostrKey,
+    explicitRelayUrls,
+    encrypt
+  } = {
+    encrypt: (passthrough) => passthrough,
+    ...params
+  }
 
   return new Promise((resolve) => {
     const sub = ndk.subscribe({
@@ -53,8 +59,7 @@ export async function createNostrCRDTRoom (
           kind: YJS_UPDATE_EVENT_KIND,
           created_at: Math.floor(Date.now() / 1000),
           tags: [['crdt', label]],
-          content: toBase64(encrypt(initialLocalState)),
-          publicKey: theUser.pubkey
+          content: toBase64(encrypt(initialLocalState))
         }, secretNostrKey)
         verifyEvent(signedEvent) && pool.publish(explicitRelayUrls, signedEvent)
       })
@@ -62,28 +67,34 @@ export async function createNostrCRDTRoom (
   })
 }
 
-export const hello = () => console.log('hello from y-ndk.js')
-
 export class NostrProvider extends ObservableV2 {
   constructor (
-    yjs,
-    ydoc,
-    nostrRoomCreateEventId,
-    ndk,
-    publicKey,
-    YJS_UPDATE_EVENT_KIND,
-    secretNostrKey,
-    explicitRelayUrls,
-    encrypt = (passthrough) => passthrough,
-    decrypt = (passthrough) => passthrough
+    params
   ) {
+    const {
+      yjs,
+      ydoc,
+      nostrRoomCreateEventId,
+      ndk,
+      YJS_UPDATE_EVENT_KIND,
+      secretNostrKey,
+      explicitRelayUrls,
+      encrypt,
+      decrypt
+    } = {
+      encrypt: (passthrough) => passthrough,
+      decrypt: (passthrough) => passthrough,
+      ...params
+    }
+
     super()
     this.yjs = yjs
     this.ydoc = ydoc
     this.ndk = ndk
     this.nostrRoomCreateEventId = nostrRoomCreateEventId
-    this.ydoc.on('update', this.documentUpdateListener)
-    this.publicKey = publicKey
+    this.ydoc.on('update', (update, origin) => {
+      this.documentUpdateListener(update, origin)
+    })
     this.YJS_UPDATE_EVENT_KIND = YJS_UPDATE_EVENT_KIND
     this.secretNostrKey = secretNostrKey
     this.explicitRelayUrls = explicitRelayUrls
@@ -93,26 +104,32 @@ export class NostrProvider extends ObservableV2 {
 
   updateFromEvents (events) {
     let updates = null
-    updates = events.map((e) => {
-      const decrypted = this.decrypt(fromBase64(e.content))
-      return decrypted
-    })
+    updates = events.map((e) => this.decrypt(fromBase64(e.content)))
     const update = this.yjs.mergeUpdates(updates)
     return update
   }
 
   publishUpdate (update) {
-    const ndkEvent = new NDKEvent(this.ndk)
-    ndkEvent.kind = this.YJS_UPDATE_EVENT_KIND
-    ndkEvent.created_at = Math.floor(Date.now() / 1000)
-    ndkEvent.content = toBase64(this.encrypt(update))
-    ndkEvent.tags = [
-      ['e', this.nostrRoomCreateEventId]
-    ]
-    ndkEvent.sig = ''
-    this.ndk.publish(ndkEvent).catch(error => {
-      console.log(error)
-    })
+    if (this.secretNostrKey === undefined) {
+      const event = new NDKEvent(this.ndk, {
+        kind: this.YJS_UPDATE_EVENT_KIND,
+        tags: [['e', this.nostrRoomCreateEventId]],
+        content: toBase64(this.encrypt(update))
+      })
+      this.ndk.publish(event)
+    }
+
+    if (this.secretNostrKey !== undefined) {
+      this.ndk.signer.user().then(theUser => {
+        const signedEvent = finalizeEvent({
+          kind: this.YJS_UPDATE_EVENT_KIND,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [['e', this.nostrRoomCreateEventId]],
+          content: toBase64(this.encrypt(update))
+        }, this.secretNostrKey)
+        verifyEvent(signedEvent) && pool.publish(this.explicitRelayUrls, signedEvent)
+      })
+    }
   }
 
   pendingUpdates = []
@@ -147,6 +164,9 @@ export class NostrProvider extends ObservableV2 {
   */
   processIncomingEvents = (events) => {
     const update = this.updateFromEvents(events)
+    if (update === undefined) {
+      return
+    }
     this.yjs.applyUpdate(this.ydoc, update, this)
   }
 
@@ -155,15 +175,14 @@ export class NostrProvider extends ObservableV2 {
       let eoseSeen = false
       const initialEvents = []
       const sub = this.ndk.subscribe([
+        // {
+        //   id: this.nostrRoomCreateEventId,
+        //   kinds: [this.YJS_UPDATE_EVENT_KIND],
+        //   limit: 1,
+        //   since: 0
+        // },
         {
-          ids: [this.nostrRoomCreateEventId],
-          kinds: [this.YJS_UPDATE_EVENT_KIND],
-          limit: 1,
-          since: 0
-        },
-        {
-          '#e': [this.nostrRoomCreateEventId],
-          kinds: [this.YJS_UPDATE_EVENT_KIND]
+          '#e': [this.nostrRoomCreateEventId]
         }
       ])
       sub.on('event', (e) => {
@@ -185,7 +204,7 @@ export class NostrProvider extends ObservableV2 {
         // This can fail because of no access to room. Because the room history should always be available,
         // we don't catch this event here
         const update = this.updateFromEvents(initialEvents)
-        if (initialEvents.length > 0) {
+        if (initialEvents?.length > 0) {
           this.yjs.applyUpdate(this.ydoc, update, this)
         }
 

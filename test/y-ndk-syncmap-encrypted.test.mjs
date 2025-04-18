@@ -14,10 +14,6 @@ import {
 } from './magic.mjs'
 import chloride from 'chloride'
 import box from 'private-box'
-// import {
-//   toBase64,
-//   fromBase64
-// } from 'lib0/buffer'
 
 global.WebSocket = WebSocket
 const TEST_NOSTR_RELAYS = ['ws://0.0.0.0:4444']

@@ -224,7 +224,7 @@
             }
 
             // import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
-            // // https://github.com/auditdrivencrypto/private-box
+            // https://github.com/auditdrivencrypto/private-box
 
             const getReceiverPublicKeys = () => {
               const receiversRaw = document.querySelector("#receivers").innerHTML
@@ -321,9 +321,11 @@
             nostrRoomForm.addEventListener("submit", async (event) => {
               // console.log('nostrRoomFormSubmit')
               // console.log(encrypt)
-              // console.log(decrypt)
               const roomId = nostrRoomForm["nostr-room-id"].value
               const nsec = nostrKeypairForm['nostr-secret-key'].value
+
+              let { type, data } = nip19.decode(nsec)
+              const secretNostrKey = data // Uint8Array(32)
               const nostrSigner = new NDKPrivateKeySigner(nsec)
               const nostrPubkey = (await nostrSigner.user()).pubkey
               const ndkOpts = {}
@@ -333,18 +335,17 @@
               const ndk = new NDK(ndkOpts)
               const nostrMessageKind = getNostrMessageKind()
               await ndk.connect()
-              const nostrProvider = new NostrProvider(
+              const nostrProvider = new NostrProvider({
                 yjs,
                 ydoc,
-                roomId,
+                nostrRoomCreateEventId: roomId,
                 ndk,
-                nostrPubkey,
-                nostrMessageKind,
-                nsec,
-                ndkOpts.explicitRelayUrls,
+                YJS_UPDATE_EVENT_KIND: nostrMessageKind,
+                secretNostrKey,
+                explicitRelayUrls: ndkOpts.explicitRelayUrls,
                 encrypt,
                 decrypt
-              )
+              })
 
               nostrProvider.initialize()
 
@@ -365,12 +366,14 @@
             })
 
             document.querySelector("#new-nostr-room").addEventListener("click", async (event) => {
+
               const {
                 type,
                 data
               } = nip19.decode(nostrKeypairForm["nostr-secret-key"].value)
+              const secretNostrKeyHex = bytesToHex(data)
               const secretNostrKey = bytesToHex(data)
-              const skSigner = new NDKPrivateKeySigner(secretNostrKey)
+              const skSigner = new NDKPrivateKeySigner(secretNostrKeyHex)
               const relays = document.querySelector("#relays-display").innerText.split(",").flat()
               const ndkOpts = {}
               ndkOpts.signer = skSigner
@@ -384,20 +387,17 @@
                 const ydoc = new yjs.Doc()
                 const signerPubkey = (await skSigner.user()).pubkey
                 const nostrCrdtEventKind = getNostrMessageKind()
-
-                const nostrProvider = new NostrProvider(
+                const nostrProvider = new NostrProvider({
                   yjs,
                   ydoc,
-                  nostrRoomId,
-                  roomNdk,
-                  signerPubkey,
-                  nostrCrdtEventKind,
+                  nostrRoomCreateEventId: roomEvent.id,
+                  ndk: roomNdk,
+                  YJS_UPDATE_EVENT_KIND: nostrCrdtEventKind,
                   secretNostrKey,
-                  [relays].flat(),
+                  explicitRelayUrls: [relays].flat(),
                   encrypt,
                   decrypt
-                )
-
+                })
 
                 nostrProvider.initialize()
 
@@ -407,15 +407,18 @@
                 }, 1000)
                 return
               }
+
               const nostrRoomId = await createNostrCRDTRoom(
-                  roomNdk,
-                  'testWebApp',
+                {
+                  ndk: roomNdk,
+                  label: 'crdtroom',
                   initialLocalState,
-                  getNostrMessageKind(),
-                  secretNostrKey,
-                  [relays].flat(),
+                  YJS_UPDATE_EVENT_KIND: getNostrMessageKind(),
+                  secretNostrKey: secretNostrKey,
+                  explicitRelayUrls: [relays].flat(),
                   encrypt,
                   decrypt
+                }
               )
               nostrRoomForm["nostr-room-id"].value = nostrRoomId
             })
@@ -436,19 +439,17 @@
               senderOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
               const senderNdk = new NDK(senderOpts)
               await senderNdk.connect()
-              const nostrProvider = new NostrProvider(
+              const nostrProvider = new NostrProvider({
                 yjs,
                 ydoc,
-                roomId,
-                senderNdk,
-                senderPubkey,
-                getNostrMessageKind(),
+                nostrRoomCreateEventId: roomId,
+                ndk: senderNdk,
+                YJS_UPDATE_EVENT_KIND: getNostrMessageKind(),
                 secretNostrKey,
-                senderOpts.explicitRelayUrls,
+                explicitRelayUrls: senderOpts.explicitRelayUrls,
                 encrypt,
                 decrypt
-              )
-
+              })
               nostrProvider.initialize()
               const sharedContent = sharedContentForm["shared-content-textarea"].value
               ydoc.getMap('testWebApp').set('contents', new yjs.Text(sharedContent))

@@ -184,13 +184,41 @@
               nip19
             } from "https://cdn.jsdelivr.net/npm/nostr-tools@2.7.0/+esm"
             import chloride from "https://cdn.jsdelivr.net/npm/chloride@2.4.1/+esm";
-            // import buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
-            import {
-              buffer
-              // buffer.toBase64,
-              // buffer.fromBase64
-            } from 'https://cdn.jsdelivr.net/npm/lib0@0.2.94/+esm'
+            import * as buffer from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'
+            var Buffer = buffer.Buffer
+            var concat = Buffer.concat
+            var secretbox = chloride.crypto_secretbox_easy
+            var scalarmult = chloride.crypto_scalarmult
+            
+
+
+            // import {
+            //   buffer
+            //   // buffer.toBase64,
+            //   // buffer.fromBase64
+            // } from 'https://cdn.jsdelivr.net/npm/lib0@0.2.94/+esm'
             // import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+
+            if (!window.Buffer) {
+              window.Buffer = buffer.Buffer;
+            }
+            // import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
+
+            function randombytes(n) {
+              var b = new Buffer(n)
+              chloride.randombytes(b)
+              return b
+            }
+
+            function setMax (m) {
+              m = m || DEFAULT_MAX
+              if (m < 1 || m > 255)
+                throw new Error('max recipients must be between 0 and 255.')
+              return m
+            }
+
+
+            const DEFAULT_MAX = 7
 
             function bytesToHex(byteArray) {
               return Array.prototype.map.call(byteArray, function(byte) {
@@ -205,9 +233,27 @@
               return result;
             }
 
-            function encrypt(input) {
-              console.log('encrypt')
-              return input
+            function encrypt(msg, recipients, max) {
+              max = setMax(max)
+              if(recipients.length > max) {
+                throw new Error('max recipients is:'+max+' found:'+recipients.length)
+              }
+              var nonce = randombytes(24)
+              var key = randombytes(32)
+              var onetime = chloride.crypto_box_keypair()
+
+              var length_and_key = concat([new Buffer([recipients.length]), key])
+              return concat([
+                nonce,
+                onetime.publicKey,
+                concat(recipients.map(function (r_pk, i) {
+                  return secretbox(length_and_key, nonce, scalarmult(onetime.secretKey, new Uint8Array(r_pk)))
+                })),
+                secretbox(msg, nonce, key)
+              ])
+
+              return msg
+
               // const receivers = getReceiverPublicKeys()
               // console.log(receivers)
               // const encoder = new TextEncoder()
@@ -236,7 +282,7 @@
                 .filter(noEmpties => noEmpties !== '')
                 .map(receiverHex => {
                   const encoder = new TextEncoder()
-                  return encoder.encode(hexToBytes(receiverHex))
+                  return hexToBytes(receiverHex)
                 })
             }
 
@@ -335,6 +381,7 @@
               const ndk = new NDK(ndkOpts)
               const nostrMessageKind = getNostrMessageKind()
               await ndk.connect()
+              const receivers = getReceiverPublicKeys()
               const nostrProvider = new NostrProvider({
                 yjs,
                 ydoc,
@@ -343,7 +390,7 @@
                 YJS_UPDATE_EVENT_KIND: nostrMessageKind,
                 secretNostrKey,
                 explicitRelayUrls: ndkOpts.explicitRelayUrls,
-                encrypt,
+                encrypt: (input) => encrypt(input, receivers, receivers.length),
                 decrypt
               })
 
@@ -387,6 +434,7 @@
                 const ydoc = new yjs.Doc()
                 const signerPubkey = (await skSigner.user()).pubkey
                 const nostrCrdtEventKind = getNostrMessageKind()
+                const receivers = getReceiverPublicKeys()
                 const nostrProvider = new NostrProvider({
                   yjs,
                   ydoc,
@@ -395,7 +443,7 @@
                   YJS_UPDATE_EVENT_KIND: nostrCrdtEventKind,
                   secretNostrKey,
                   explicitRelayUrls: [relays].flat(),
-                  encrypt,
+                  encrypt: (input) => encrypt(input, receivers, receivers.length),
                   decrypt
                 })
 
@@ -407,7 +455,6 @@
                 }, 1000)
                 return
               }
-
               const nostrRoomId = await createNostrCRDTRoom(
                 {
                   ndk: roomNdk,
@@ -416,7 +463,7 @@
                   YJS_UPDATE_EVENT_KIND: getNostrMessageKind(),
                   secretNostrKey: secretNostrKey,
                   explicitRelayUrls: [relays].flat(),
-                  encrypt,
+                  encrypt: (input) => encrypt(input, receivers, receivers.length),
                   decrypt
                 }
               )
@@ -439,6 +486,7 @@
               senderOpts.explicitRelayUrls = document.querySelector("#relays-display").innerText.split(",")
               const senderNdk = new NDK(senderOpts)
               await senderNdk.connect()
+              const receivers = getReceiverPublicKeys()
               const nostrProvider = new NostrProvider({
                 yjs,
                 ydoc,
@@ -447,7 +495,7 @@
                 YJS_UPDATE_EVENT_KIND: getNostrMessageKind(),
                 secretNostrKey,
                 explicitRelayUrls: senderOpts.explicitRelayUrls,
-                encrypt,
+                encrypt: (input) => encrypt(input, receivers, receivers.length),
                 decrypt
               })
               nostrProvider.initialize()

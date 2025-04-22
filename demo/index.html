@@ -30,7 +30,7 @@
                             public key:
                             <pre id="display-sender-encryption-public-key"></pre>
                             secret key:
-                            <pre id="display-sender-encryption-secret-key"></pre>
+                            <pre id="display-decryption-key-hex"></pre>
                         </summary>
                         <button id="new-keypair">generate new key</button>
                         <form id="keypair-form" onsubmit="return false">
@@ -189,20 +189,14 @@
             var concat = Buffer.concat
             var secretbox = chloride.crypto_secretbox_easy
             var scalarmult = chloride.crypto_scalarmult
-            
+            var secretbox_open = chloride.crypto_secretbox_open_easy
 
-
-            // import {
-            //   buffer
-            //   // buffer.toBase64,
-            //   // buffer.fromBase64
-            // } from 'https://cdn.jsdelivr.net/npm/lib0@0.2.94/+esm'
+            // encrypt/decrypt plagiarized from here
             // import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
 
             if (!window.Buffer) {
               window.Buffer = buffer.Buffer;
             }
-            // import * as privatebox from 'https://cdn.jsdelivr.net/npm/private-box@0.3.1/+esm'
 
             function randombytes(n) {
               var b = new Buffer(n)
@@ -241,9 +235,9 @@
               var nonce = randombytes(24)
               var key = randombytes(32)
               var onetime = chloride.crypto_box_keypair()
-
               var length_and_key = concat([new Buffer([recipients.length]), key])
-              return concat([
+              console.log('length_and_key', length_and_key)
+              const encrypted = concat([
                 nonce,
                 onetime.publicKey,
                 concat(recipients.map(function (r_pk, i) {
@@ -251,18 +245,65 @@
                 })),
                 secretbox(msg, nonce, key)
               ])
-
-              return msg
-
-              // const receivers = getReceiverPublicKeys()
-              // console.log(receivers)
-              // const encoder = new TextEncoder()
-              // return privatebox.encrypt(encoder.encode(input), receivers)
+              console.log('encrypted', encrypted)
+              return encrypted
             }
-            function decrypt (input) {
+
+            function multibox_open_key (ctxt, sk, max) { //, groups...
+              console.log('multibox_open_key')
+              console.log('ciphertext', ctxt)
+              console.log('sk', sk)
+              max = setMax(max)
+              console.log('max', max)
+              var nonce = ctxt.slice(0, 24)
+              console.log('nonce', nonce)
+              var onetime_pk = ctxt.slice(24, 24+32)
+              console.log('onetime_pk', onetime_pk)
+              var my_key = scalarmult(sk, onetime_pk)
+              console.log('my_key', my_key)
+              var length_and_key, key, length, start = 24+32, size = 32+1+16
+              // console.log('length_and_key', length_and_key)
+              for(var i = 0; i <= max; i++) {
+                var s = start+size*i
+                if(s + size > (ctxt.length - 16)) return null
+                length_and_key = secretbox_open(ctxt.slice(s, s + size), nonce, my_key)
+                console.log('length_and_key', length_and_key)
+                if(length_and_key) return length_and_key
+              }
+            }
+
+            function multibox_open_body (ctxt, length_and_key) { //, groups...
+              console.log('multibox_open_body')
+              console.log(ctxt)
+              console.log(length_and_key)
+              if(!length_and_key) return
+              var key = length_and_key.slice(1)
+              var length = length_and_key[0]
+              var start = 24+32, size = 32+1+16
+              var nonce = ctxt.slice(0, 24)
+            return secretbox_open(ctxt.slice(start+length*size), nonce, key)
+            }
+
+            function decrypt (ctxt, sk, max) { //, groups...
               console.log('decrypt')
-              return input
-              // const secretKeyHex = document.querySelector("#secret-key").innerHTML
+              console.log('ctxt', ctxt)
+              console.log('sk', sk)
+              console.log('max', max)
+              var _key = multibox_open_key(ctxt, sk, max)
+              console.log('_key', _key)
+              if(_key) {
+                const theBuffer = multibox_open_body(ctxt, _key)
+                console.log('theBuffer', theBuffer)
+                const decoder = new TextDecoder()
+                const decoded = decoder.decode(theBuffer, Uint8Array)
+                console.log('decoded', decoded)
+                return decoded
+              }
+
+
+              // console.log('decrypt')
+              // return input
+
               // const theBuffer = privatebox.decrypt(input, secretKeyHex)
               // const decoder = new TextDecoder()
               // const decoded = decoder.decode(theBuffer)
@@ -281,10 +322,38 @@
                 .map(removeParagraphMark => removeParagraphMark.replace('<p>',''))
                 .filter(noEmpties => noEmpties !== '')
                 .map(receiverHex => {
-                  const encoder = new TextEncoder()
                   return hexToBytes(receiverHex)
                 })
             }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            const getDecryptionSecretKey = () => {
+              const secretKeyRaw = document.querySelector("#receivers").innerHTML
+            }
+
+
+
+
+
+
+
+
+
+
+
 
             const getNostrMessageKind = () => parseInt(document.querySelector("#nostr-message-kind-display").innerHTML)
             const ydoc = new yjs.Doc()
@@ -292,23 +361,25 @@
             const ymap = ydoc.getMap('testWebApp')
             ymap.observe(event => {
                 const newContent = ymap.get('contents').toJSON()
+                console.log('newContent', newContent)
                 sharedContentForm["shared-content-textarea"].value = newContent
             })
             let addReceiverForm = document.querySelector("#add-receiver-form");
 
             let keypairForm = document.querySelector("#keypair-form");
             keypairForm.addEventListener("submit", async (event) => {
-                document.querySelector("#display-sender-encryption-secret-key").innerHTML = keypairForm["secret-key"].value;
+                document.querySelector("#display-decryption-key-hex").innerHTML = keypairForm["secret-key"].value;
                 document.querySelector("#display-sender-encryption-public-key").innerHTML = keypairForm["public-key"].value;
             })
             let newKeypairButton = document.querySelector("#new-keypair");
             newKeypairButton.addEventListener("click", async (event) => {
                 const keypair = chloride.crypto_box_keypair;
                 const identityKeypair = await keypair();
+                console.log('secretKey', identityKeypair.secretKey)
                 keypairForm["secret-key"].value = identityKeypair.secretKey.toString('hex')
                 keypairForm["public-key"].value = identityKeypair.publicKey.toString('hex')
                 addReceiverForm['public-key'].value = identityKeypair.publicKey.toString('hex')
-                document.querySelector("#display-sender-encryption-secret-key").innerHTML = identityKeypair.secretKey.toString('hex')
+                document.querySelector("#display-decryption-key-hex").innerHTML = identityKeypair.secretKey.toString('hex')
                 document.querySelector("#display-sender-encryption-public-key").innerHTML = identityKeypair.publicKey.toString('hex')
             })
             let clearReceiversButton = document.querySelector("#clear-receivers");
@@ -382,6 +453,12 @@
               const nostrMessageKind = getNostrMessageKind()
               await ndk.connect()
               const receivers = getReceiverPublicKeys()
+              const secretKeyHex = document.querySelector("#display-decryption-key-hex").innerHTML
+              console.log('secretKeyHex')
+              console.log(secretKeyHex)
+              const decryptionKey = Uint8Array.from(hexToBytes(secretKeyHex))
+              console.log('decryptionKey', decryptionKey)
+
               const nostrProvider = new NostrProvider({
                 yjs,
                 ydoc,
@@ -390,12 +467,16 @@
                 YJS_UPDATE_EVENT_KIND: nostrMessageKind,
                 secretNostrKey,
                 explicitRelayUrls: ndkOpts.explicitRelayUrls,
-                encrypt: (input) => encrypt(input, receivers, receivers.length),
-                decrypt
+                encrypt: (input) => {
+                  console.log('encrypt')
+                  console.log('input', input)
+                  console.log('receivers', receivers)
+                  encrypt(input, receivers, receivers.length)
+                },
+                decrypt: (input) => decrypt(input, decryptionKey, receivers.length) 
               })
 
               nostrProvider.initialize()
-
               setTimeout(() => {
                 const initialContent = ydoc.getMap('testWebApp').get('contents')?.toJSON()
                 sharedContentForm["shared-content-textarea"].value = initialContent
@@ -428,23 +509,27 @@
               const roomNdk = new NDK(ndkOpts)
               await roomNdk.connect()
               const receivers = getReceiverPublicKeys()
-
               if (nostrRoomForm["nostr-room-id"].value) {
                 const nostrRoomId = nostrRoomForm["nostr-room-id"].value
                 const ydoc = new yjs.Doc()
                 const signerPubkey = (await skSigner.user()).pubkey
                 const nostrCrdtEventKind = getNostrMessageKind()
                 const receivers = getReceiverPublicKeys()
+                const secretKeyHex = document.querySelector("#display-decryption-key-hex").innerHTML
+                console.log('secretKeyHex',secretKeyHex)
+                const encoder = new TextEncoder()
+                const decryptionKey = Uint8Array.from(hexToBytes(secretKeyHex))
+                console.log('decryptionKey', decryptionKey)
                 const nostrProvider = new NostrProvider({
                   yjs,
                   ydoc,
-                  nostrRoomCreateEventId: roomEvent.id,
+                  nostrRoomCreateEventId: nostrRoomId,
                   ndk: roomNdk,
                   YJS_UPDATE_EVENT_KIND: nostrCrdtEventKind,
                   secretNostrKey,
                   explicitRelayUrls: [relays].flat(),
                   encrypt: (input) => encrypt(input, receivers, receivers.length),
-                  decrypt
+                  decrypt: (input) => decrypt(input, decryptionKey, receivers.length) 
                 })
 
                 nostrProvider.initialize()
@@ -487,6 +572,14 @@
               const senderNdk = new NDK(senderOpts)
               await senderNdk.connect()
               const receivers = getReceiverPublicKeys()
+              const secretKeyHex = document.querySelector("#display-decryption-key-hex").innerHTML
+              console.log('secretKeyHex')
+              console.log(secretKeyHex)
+              const decryptionKeyBytes = hexToBytes(secretKeyHex)
+              const encoder = new TextEncoder()
+              const decryptionKey = Uint8Array.from(hexToBytes(secretKeyHex))
+              console.log('decryptionKey', decryptionKey)
+
               const nostrProvider = new NostrProvider({
                 yjs,
                 ydoc,
@@ -496,7 +589,7 @@
                 secretNostrKey,
                 explicitRelayUrls: senderOpts.explicitRelayUrls,
                 encrypt: (input) => encrypt(input, receivers, receivers.length),
-                decrypt
+                decrypt: (input) => decrypt(input, decryptionKey, receivers.length) 
               })
               nostrProvider.initialize()
               const sharedContent = sharedContentForm["shared-content-textarea"].value

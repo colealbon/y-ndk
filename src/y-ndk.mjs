@@ -105,7 +105,6 @@ export class NostrProvider extends ObservableV2 {
   updateFromEvents (events) {
     let updates = null
     updates = events.map((e) => this.decrypt(fromBase64(e.content)))
-    console.log('updates', updates)
     const update = this.yjs.mergeUpdates(updates)
     return update
   }
@@ -164,13 +163,10 @@ export class NostrProvider extends ObservableV2 {
   * Handles incoming events from nostr
   */
   processIncomingEvents = (events) => {
-    console.log('processIncomingEvents')
     const update = this.updateFromEvents(events)
     if (update === undefined) {
       return
     }
-    console.log('update')
-    console.log(update)
     this.yjs.applyUpdate(this.ydoc, update, this)
   }
 
@@ -186,22 +182,8 @@ export class NostrProvider extends ObservableV2 {
           '#e': [this.nostrRoomCreateEventId]
         },
         { closeOnEose: false }
-        // , // Options (no explicit relays specified)
-        // {
-        //   onEvent: (event, relay) => {
-        //     // Called for events received from relays after the initial cache load (if onEvents is used)
-        //     console.log('Received event from relay (id):', event.id)
-        //   },
-        //   onEvents: (events) => { // Parameter renamed to 'events'
-        //     console.log(`Received ${events.length} events from cache initially.`)
-        //   },
-        //   onEose: (subscription) => {
-        //     console.log('Subscription reached EOSE:', subscription.internalId)
-        //   }
-        // }
       )
       sub.on('event', (e) => {
-        console.log('sub.on.event')
         if (!eoseSeen) {
           initialEvents.push(e)
         } else {
@@ -209,11 +191,9 @@ export class NostrProvider extends ObservableV2 {
         }
       })
       sub.on('events', (es) => {
-        console.log('sub.on.events')
         this.processIncomingEvents(es)
       })
       sub.on('eose', () => {
-        console.log('sub.on.eose')
         eoseSeen = true
         const initialLocalState = this.yjs.encodeStateAsUpdate(this.ydoc)
         const initialLocalStateVector = this.yjs.encodeStateVectorFromUpdate(initialLocalState)

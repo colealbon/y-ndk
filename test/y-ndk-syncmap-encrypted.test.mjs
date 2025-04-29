@@ -145,8 +145,9 @@ export const testSyncMapEncrypted = async tc => {
   nostrProviderBob.initialize()
 
   const plaintext = 'hello charlie'
-
   await aliceYdoc.getMap('test').set('contents', new yjs.Text(plaintext))
+  await eveYdoc.getMap('test').set('contents', new yjs.Text(plaintext))
+
   await new Promise((resolve) => setTimeout(resolve, 500))
   const bobReceive = bobYdoc.getMap('test').get('contents').toJSON()
   await testing.compare(bobReceive, plaintext, 'objects are equal')
@@ -154,4 +155,7 @@ export const testSyncMapEncrypted = async tc => {
   await new Promise((resolve) => setTimeout(resolve, 500))
   const aliceReceive = aliceYdoc.getMap('test').get('contents').toJSON()
   await testing.compare(aliceReceive, 'goodbye', 'objects are equal')
+
+  const eveReceiveShouldnotupdate = eveYdoc.getMap('test').get('contents').toJSON()
+  await testing.compare(eveReceiveShouldnotupdate, plaintext, 'objects are equal')
 }

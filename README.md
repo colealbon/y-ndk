@@ -8,13 +8,15 @@ update to the venerable [nostr-crdt](https://github.com/YousefED/nostr-crdt) pac
 - drop boomer typescript support
 - replace webpack/jest syntax with rollup.js and lib0/test
 
+[11 minute walkthrough demo](https://www.youtube.com/watch?v=d0k07-eXXE0)
+
 ## install (npm install y-ndk isn't set up yet)
 
 ```sh
 git clone https://github.com/colealbon/y-ndk.git;
 cd y-ndk;
 pnpm install;
-pnpm test;
+pnpm run test-cleartext; sleep 2; pnpm run test-private
 pnpm build;
 ```
 

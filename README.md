@@ -11,7 +11,20 @@ update to the venerable [nostr-crdt](https://github.com/YousefED/nostr-crdt) pac
 [11 minute web app demo](https://www.youtube.com/watch?v=d0k07-eXXE0)   
 [12 minute solidjs demo](https://www.youtube.com/watch?v=Uai98RGlu-8)
 
-## install (npm install y-ndk isn't set up yet)
+
+## install
+```sh
+npm install @colealbon/y-ndk
+```
+
+## example usage
+
+[node unit tests](https://github.com/colealbon/y-ndk/tree/main/test).  
+[generic web app](https://github.com/colealbon/y-ndk/tree/main/demo).  
+[solidjs app](https://gitlab.com/cole.albon/spike)
+
+
+## develop
 
 ```sh
 git clone https://github.com/colealbon/y-ndk.git;

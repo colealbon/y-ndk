@@ -8,7 +8,8 @@ update to the venerable [nostr-crdt](https://github.com/YousefED/nostr-crdt) pac
 - drop boomer typescript support
 - replace webpack/jest syntax with rollup.js and lib0/test
 
-[11 minute walkthrough demo](https://www.youtube.com/watch?v=d0k07-eXXE0)
+[11 minute web app demo](https://www.youtube.com/watch?v=d0k07-eXXE0)   
+[12 minute solidjs demo](https://www.youtube.com/watch?v=Uai98RGlu-8)
 
 ## install (npm install y-ndk isn't set up yet)
 

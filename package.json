@@ -1,6 +1,6 @@
 {
   "name": "@colealbon/y-ndk",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "yjs crdt state synchronizors over nostr relays",
   "exports": {
     "./package.json": "./package.json",
